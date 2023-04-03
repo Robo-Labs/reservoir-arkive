@@ -2,22 +2,20 @@ import { createEntity } from "../deps.ts";
 
 interface ISwap {
   pair: String;
-  amount0In: BigInt;
-  amount1In: BigInt;
+  amountIn: Number;
   tradeDirection: Boolean
   to: String;
-  timestamp: BigInt;
-  price0: BigInt,
-  price1: BigInt
+  timestamp: Number;
+  price0: Number,
+  price1: Number
 }
 
 export const Swap = createEntity<ISwap>("Swap", {
   pair: String,
-  amount0In: BigInt,
-  amount1In: BigInt,
+  amountIn: Number,
   tradeDirection: Boolean,
   to: String,
-  timestamp: BigInt,
-  price0: BigInt,
-  price1: BigInt
+  timestamp: Number,
+  price0: Number,
+  price1: Number
 });

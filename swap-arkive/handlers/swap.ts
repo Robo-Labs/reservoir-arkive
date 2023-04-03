@@ -17,8 +17,8 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
       amountOut: tradeDirection ? amount1Out : amount0Out,
       to: to,
       timestamp: event.blockNumber,
-      price0: tradeDirection ? amount0In/amount1Out : BigInt(1)/(amount1In/amount0Out),
-      price1: tradeDirection ? BigInt(1)/(amount0In/amount1Out) : amount1In/amount0Out
+      price0: tradeDirection ? Number(amount0In/amount1Out) : 1/Number(amount1In/amount0Out),
+      price1: tradeDirection ? 1/Number(amount0In/amount1Out) : Number(amount1In/amount0Out)
     });
 
     // Save the new swap entry to the database
