@@ -7,19 +7,21 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
     { event, client, store },
   ) => {
     const { amount0In, amount1In, amount0Out, amount1Out, to } = event.args;
+    console.log(amount0In, amount1In, amount0Out, amount1Out, to)
 
-    const tradeDirection = amount0Out < amount1Out; // False(0) if direction is token0, True(1) if direction is token1
+    const tradeDirection: boolean = (amount0Out < amount1Out); // False(0) if direction is token0, True(1) if direction is token1
+    console.log(tradeDirection)
     // Create a new swap entry with the necessary information
     const newSwap = new Swap({
       pair: event.address,
-      amountIn: tradeDirection ? amount1In : amount0In,
-      direction: tradeDirection,
-      amountOut: tradeDirection ? amount1Out : amount0Out,
+      amountIn: tradeDirection ? parseFloat(formatUnits(amount1In, 18)) : parseFloat(formatUnits(amount0In, 18)),
+      tradeDirection: tradeDirection,
+      amountOut: tradeDirection ? parseFloat(formatUnits(amount1Out,18)) : parseFloat(formatUnits(amount0Out, 18)),
       to: to,
-      timestamp: event.blockNumber,
-      price0: tradeDirection ? Number(amount0In/amount1Out) : 1/Number(amount1In/amount0Out),
-      price1: tradeDirection ? 1/Number(amount0In/amount1Out) : Number(amount1In/amount0Out)
-    });
+      timestamp: parseFloat(formatUnits(event.blockNumber, 0)),
+      price0: tradeDirection ? parseFloat(formatUnits(amount1Out / (amount0In), 18)) : parseFloat(formatUnits(BigInt(1)/(amount0Out) / (amount1In), 18)),
+      price1: 0,
+  });
 
     // Save the new swap entry to the database
     await newSwap.save();

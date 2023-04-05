@@ -3,7 +3,7 @@ import { createEntity } from "../deps.ts";
 interface ISwap {
   pair: String;
   amountIn: Number;
-  tradeDirection: Boolean
+  tradeDirection: Boolean;
   to: String;
   timestamp: Number;
   price0: Number,

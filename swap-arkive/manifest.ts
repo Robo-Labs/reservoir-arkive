@@ -9,7 +9,7 @@ manifest
 	.addEntity(Swap)
 	.addChain("ethereum")
 	.addContract(uniswapV2Pair)
-	.addSource("0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640", 27347402n)
+	.addSource("0xC0d776E2223c9a2ad13433DAb7eC08cB9C5E76ae", 16933523n)
 	.addEventHandler("Swap", swapHandler);
 
 export default manifest.build();
