@@ -4,6 +4,7 @@ import erc20 from "../abis/erc20.ts";
 import chainlink from "../abis/chainlink.ts";
 import { Swap } from "../entities/swap.ts";
 import { Address } from "https://deno.land/x/robo_arkiver@v0.3.4/src/deps.ts";
+import labels from "./lib/labels.ts";
 
 export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
   async (
@@ -28,6 +29,42 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
           abi: uniswapV2Pair,
           functionName: "token1",
           address,
+        }),
+    );
+    const token0Symbol: String = await store.retrieve(
+      `${address}:token0:symbol`,
+      async () =>
+        await client.readContract({
+          abi: erc20,
+          functionName: "symbol",
+          address: token0
+        }),
+    );
+    const token1Symbol: String = await store.retrieve(
+      `${address}:token1:symbol`,
+      async () =>
+        await client.readContract({
+          abi: erc20,
+          functionName: "symbol",
+          address: token1
+        }),
+    );
+    const token0Name: String = await store.retrieve(
+      `${address}:token0:name`,
+      async () =>
+        await client.readContract({
+          abi: erc20,
+          functionName: "name",
+          address: token0
+        }),
+    );
+    const token1Name: String = await store.retrieve(
+      `${address}:token1:name`,
+      async () =>
+        await client.readContract({
+          abi: erc20,
+          functionName: "name",
+          address: token1
         }),
     );
     const decimals0: number = await store.retrieve(
@@ -56,6 +93,17 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
           abi: chainlink,
           functionName: "latestAnswer",
           address: chainlinkETHUSDOracle,
+          blockNumber: event.blockNumber
+        }),
+    );
+    const reserves = await store.retrieve(
+      `${event.blockNumber}:${address}:reserves`,
+      async () =>
+        await client.readContract({
+          abi: uniswapV2Pair,
+          functionName: "getReserves",
+          address: address,
+          blockNumber: event.blockNumber
         }),
     );
     //console.log(ETHUSDPrice)
@@ -97,21 +145,34 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
     let numerator = VolUSD * (10 ** (18-8))
     let denominator = wethIsToken0 ? tradeDirection ? (amount1Out * BigInt(10 ** (18-decimals1))) : (amount1In * BigInt(10 ** (18-decimals1))) : tradeDirection ? (amount0In * BigInt(10 ** (18-decimals0))) : (amount0Out * BigInt(10 ** (18-decimals0)))
     let priceUSD  = numerator / Number(denominator)
-    console.log(`priceUSD: ${priceUSD}`)
-    console.log(`numerator: ${numerator}`)
-    console.log(`denominator: ${denominator}`)
+    //console.log(`priceUSD: ${priceUSD}`)
+    //console.log(`numerator: ${numerator}`)
+    //console.log(`denominator: ${denominator}`)
     //console.log(`cumVol usd: ${cumulativeVolumeUSD}`)
     VolUSD = parseFloat(formatUnits(BigInt(Math.floor(VolUSD)), 8))
     //console.log(`price usd fmt: ${priceUSD}`)
     //console.log(`token0 == weth: ${wethIsToken0}`)
     // Create a new swap entry with the necessary information
+    // if(labels[to.toLowerCase()]){
+    //   console.log(labels[to.toLowerCase()]['name'])
+    // }
+    //console.log(reserves)
+    // console.log(parseFloat(formatUnits(reserves[1], (decimals0) )))
+    // console.log('*')
+    // console.log(parseFloat(formatUnits(ETHUSDPrice, 8)))
+    // console.log( parseFloat(formatUnits(reserves[1], (decimals0) )) * parseFloat(formatUnits(ETHUSDPrice, 8)) )
     const newSwap = new Swap({
       pair: event.address,
+      hash: event.transactionHash,
+      token0Symbol,
+      token1Symbol,
+      token0Name,
+      token1Name,
       amountIn: tradeDirection ? parseFloat(formatUnits(amount0In, 18)) : parseFloat(formatUnits(amount1In, 18)),
       amountOut: tradeDirection ? parseFloat(formatUnits(amount1Out,18)) : parseFloat(formatUnits(amount0Out, 18)),
       amountUSD: VolUSD,
       tradeDirection: tradeDirection,
-      to: to,
+      dex: labels[to.toLowerCase()] ? labels[to.toLowerCase()]['name'] : to,
       timestamp: parseFloat(formatUnits(event.blockNumber, 0)),
       price0: price,
       price1: 1/price,
@@ -119,6 +180,10 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
       cumulativeVolume0: parseFloat(formatUnits(BigInt(cumulativeVolume0), decimals0)).toFixed(decimals0),
       cumulativeVolume1: parseFloat(formatUnits(BigInt(cumulativeVolume1), decimals1)).toFixed(decimals1),
       cumulativeVolumeUSD: parseFloat(formatUnits(BigInt(Math.floor(cumulativeVolumeUSD)), 8)),
+      cumulativeFeesUSD: parseFloat(formatUnits(BigInt(Math.floor(cumulativeVolumeUSD)), 8))*0.003, // trust the process
+      reserves0: parseFloat(formatUnits(reserves[0], decimals0)),
+      reserves1: parseFloat(formatUnits(reserves[1], decimals1)),
+      USDTVL: wethIsToken0 ? 2 * (parseFloat(formatUnits(reserves[0], (decimals0) )) * parseFloat(formatUnits(ETHUSDPrice, 8))) : 2 * (parseFloat(formatUnits(reserves[1], (decimals1) )) * parseFloat(formatUnits(ETHUSDPrice, 8)))
   });
 
 
