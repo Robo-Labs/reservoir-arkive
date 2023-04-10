@@ -3,6 +3,7 @@ import uniswapV2Pair from "../abis/uniswapV2Pair.ts";
 import erc20 from "../abis/erc20.ts";
 import chainlink from "../abis/chainlink.ts";
 import { Swap } from "../entities/swap.ts";
+import { Dex, IDex} from "../entities/dex.ts";
 import { Address } from "https://deno.land/x/robo_arkiver@v0.3.4/src/deps.ts";
 import labels from "./lib/labels.ts";
 
@@ -145,22 +146,8 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
     let numerator = VolUSD * (10 ** (18-8))
     let denominator = wethIsToken0 ? tradeDirection ? (amount1Out * BigInt(10 ** (18-decimals1))) : (amount1In * BigInt(10 ** (18-decimals1))) : tradeDirection ? (amount0In * BigInt(10 ** (18-decimals0))) : (amount0Out * BigInt(10 ** (18-decimals0)))
     let priceUSD  = numerator / Number(denominator)
-    //console.log(`priceUSD: ${priceUSD}`)
-    //console.log(`numerator: ${numerator}`)
-    //console.log(`denominator: ${denominator}`)
-    //console.log(`cumVol usd: ${cumulativeVolumeUSD}`)
     VolUSD = parseFloat(formatUnits(BigInt(Math.floor(VolUSD)), 8))
-    //console.log(`price usd fmt: ${priceUSD}`)
-    //console.log(`token0 == weth: ${wethIsToken0}`)
-    // Create a new swap entry with the necessary information
-    // if(labels[to.toLowerCase()]){
-    //   console.log(labels[to.toLowerCase()]['name'])
-    // }
-    //console.log(reserves)
-    // console.log(parseFloat(formatUnits(reserves[1], (decimals0) )))
-    // console.log('*')
-    // console.log(parseFloat(formatUnits(ETHUSDPrice, 8)))
-    // console.log( parseFloat(formatUnits(reserves[1], (decimals0) )) * parseFloat(formatUnits(ETHUSDPrice, 8)) )
+
     const newSwap = new Swap({
       pair: event.address,
       hash: event.transactionHash,
@@ -192,5 +179,22 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
     store.set(`${event.address}:lastSwapCumulativeVol1`, cumulativeVolume1)
     store.set(`${event.address}:lastSwapCumulativeVolUSD`, cumulativeVolumeUSD)
     await newSwap.save();
+
+    let dex = await store.retrieve(
+      `dex:${to}`,
+      () => {
+        return new Dex({
+          address: to,
+          name: labels[to.toLowerCase()] ? labels[to.toLowerCase()]['name'] : to,
+          cumulativeVolumeUSD: 0,
+          lastUpdate: 0
+        })
+      }
+    )
     
+    dex.cumulativeVolumeUSD += VolUSD
+    dex.lastUpdate = parseFloat(formatUnits(event.blockNumber, 0));
+
+    await dex.save();
+    //parseFloat(formatUnits(BigInt(Math.floor(VolUSD)), 8))
   };
