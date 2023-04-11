@@ -217,16 +217,16 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
         .sort({ timestamp: 1 }) // Sort by descending timestamp
         .limit(1) // Get the top 1 result
         .exec();
-    console.log(dex24HoursAgo.length > 0)
-    if(dex24HoursAgo.length > 0){
-      console.log(`24H: ${dex24HoursAgo.length > 0 ? dex.timestamp >= dex24HoursAgo[0].timestamp ?  (dex.cumulativeVolumeUSD + VolUSD) - dex24HoursAgo[0].cumulativeVolumeUSD : VolUSD : VolUSD}`)
-      console.log(`volUSD: ${VolUSD}`)
-    }
-    console.log(dex1HourAgo.length > 0)
-    if(dex1HourAgo.length > 0){
-      console.log(`1H: ${dex1HourAgo.length > 0 ? dex.timestamp >= dex1HourAgo[0].timestamp ? (dex.cumulativeVolumeUSD + VolUSD) - dex1HourAgo[0].cumulativeVolumeUSD : VolUSD : VolUSD}`)
-      console.log(`volUSD: ${VolUSD}`)
-    }
+    // console.log(dex24HoursAgo.length > 0)
+    // if(dex24HoursAgo.length > 0){
+    //   console.log(`24H: ${dex24HoursAgo.length > 0 ? dex.timestamp >= dex24HoursAgo[0].timestamp ?  (dex.cumulativeVolumeUSD + VolUSD) - dex24HoursAgo[0].cumulativeVolumeUSD : VolUSD : VolUSD}`)
+    //   console.log(`volUSD: ${VolUSD}`)
+    // }
+    // console.log(dex1HourAgo.length > 0)
+    // if(dex1HourAgo.length > 0){
+    //   console.log(`1H: ${dex1HourAgo.length > 0 ? dex.timestamp >= dex1HourAgo[0].timestamp ? (dex.cumulativeVolumeUSD + VolUSD) - dex1HourAgo[0].cumulativeVolumeUSD : VolUSD : VolUSD}`)
+    //   console.log(`volUSD: ${VolUSD}`)
+    // }
 
     let newDex = new Dex({
       address: to,
