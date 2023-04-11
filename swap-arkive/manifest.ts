@@ -9,7 +9,7 @@ const manifest = new Manifest("swap-arkive-v1");
 manifest
 	.addEntity(Swap)
 	.addEntity(Dex)
-	.addChain("ethereum", { blockRange: 100n })
+	.addChain("mainnet", { blockRange: 1000n })
 	.addContract(uniswapV2Pair)
 	.addSource("0x34b6f33a5d88fca1b8f78a510bc81673611a68f0", 16962025n)
 	.addEventHandler("Swap", swapHandler);
