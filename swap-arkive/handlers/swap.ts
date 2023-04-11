@@ -141,7 +141,7 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
     cumulativeVolume1 = cumulativeVolume1 + (tradeDirection ? Number(amount1Out) : Number(amount1In))
     const weth = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
     const wethIsToken0 = token0 == weth
-    let VolUSD = wethIsToken0 ? (Number(ETHUSDPrice) * Number(tradeDirection ? amount0In : amount0Out))/(10 ** decimals0) : (Number(ETHUSDPrice) * Number(tradeDirection ? amount1Out : amount1In))/(10 ** decimals1)
+    let VolUSD: Number = wethIsToken0 ? (Number(ETHUSDPrice) * Number(tradeDirection ? amount0In : amount0Out))/(10 ** decimals0) : (Number(ETHUSDPrice) * Number(tradeDirection ? amount1Out : amount1In))/(10 ** decimals1)
     cumulativeVolumeUSD = cumulativeVolumeUSD + Math.floor(VolUSD)
     let numerator = VolUSD * (10 ** (18-8))
     let denominator = wethIsToken0 ? tradeDirection ? (amount1Out * BigInt(10 ** (18-decimals1))) : (amount1In * BigInt(10 ** (18-decimals1))) : tradeDirection ? (amount0In * BigInt(10 ** (18-decimals0))) : (amount0Out * BigInt(10 ** (18-decimals0)))
@@ -191,10 +191,54 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
         })
       }
     )
-    
-    dex.cumulativeVolumeUSD += VolUSD
-    dex.lastUpdate = parseFloat(formatUnits(event.blockNumber, 0));
 
-    await dex.save();
+    const currentBlockNumber = event.blockNumber; // Assuming you have access to the current block number
+
+    // Calculate the number of blocks in the past 24 hours
+    const blockTime = 15; // Approximate block time in seconds
+    const secondsInADay = 24 * 60 * 60;
+    const secondsInAHour = 60 * 60;
+    const blocksInADay = Math.floor(secondsInADay / blockTime);
+    const blocksInAHour = Math.floor(secondsInAHour / blockTime);
+    // Calculate the block number 24 hours ago
+    const blockNumber24HoursAgo = Number(currentBlockNumber) - blocksInADay;
+    const blockNumber1HourAgo = Number(currentBlockNumber) - blocksInAHour;
+    // Find the swap that happened closest to 24 hours ago but no more
+    const dex24HoursAgo = await Dex.find({
+      timestamp: { $gte: blockNumber24HoursAgo }
+    })
+      .sort({ timestamp: 1 }) // Sort by descending timestamp
+      .limit(1) // Get the top 1 result
+      .exec();
+  
+    const dex1HourAgo = await Dex.find({
+        timestamp: { $gte: blockNumber1HourAgo }
+      })
+        .sort({ timestamp: 1 }) // Sort by descending timestamp
+        .limit(1) // Get the top 1 result
+        .exec();
+    console.log(dex24HoursAgo.length > 0)
+    if(dex24HoursAgo.length > 0){
+      console.log(`24H: ${dex24HoursAgo.length > 0 ? dex.timestamp >= dex24HoursAgo[0].timestamp ?  (dex.cumulativeVolumeUSD + VolUSD) - dex24HoursAgo[0].cumulativeVolumeUSD : VolUSD : VolUSD}`)
+      console.log(`volUSD: ${VolUSD}`)
+    }
+    console.log(dex1HourAgo.length > 0)
+    if(dex1HourAgo.length > 0){
+      console.log(`1H: ${dex1HourAgo.length > 0 ? dex.timestamp >= dex1HourAgo[0].timestamp ? (dex.cumulativeVolumeUSD + VolUSD) - dex1HourAgo[0].cumulativeVolumeUSD : VolUSD : VolUSD}`)
+      console.log(`volUSD: ${VolUSD}`)
+    }
+
+    let newDex = new Dex({
+      address: to,
+      name: labels[to.toLowerCase()] ? labels[to.toLowerCase()]['name'] : to,
+      cumulativeVolumeUSD: dex.cumulativeVolumeUSD + VolUSD,
+      volumeUSD24H: dex24HoursAgo.length > 0 ? dex.timestamp >= dex24HoursAgo[0].timestamp ?  (dex.cumulativeVolumeUSD + VolUSD) - dex24HoursAgo[0].cumulativeVolumeUSD : VolUSD : VolUSD,
+      volumeUSD1H: dex1HourAgo.length > 0 ? dex.timestamp >= dex1HourAgo[0].timestamp ? (dex.cumulativeVolumeUSD + VolUSD) - dex1HourAgo[0].cumulativeVolumeUSD : VolUSD : VolUSD,
+      timestamp: parseFloat(formatUnits(event.blockNumber, 0))
+
+    });
+    //dex.cumulativeVolumeUSD += VolUSD
+    //dex.lastUpdate = parseFloat(formatUnits(event.blockNumber, 0));
+    store.set(`dex:${to}`, newDex.save())
     //parseFloat(formatUnits(BigInt(Math.floor(VolUSD)), 8))
   };

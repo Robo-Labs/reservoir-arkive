@@ -4,7 +4,9 @@ interface IDex {
   address: String;
   name: String;
   cumulativeVolumeUSD: Number;
-  lastUpdate: Number;
+  volumeUSD24H: Number;
+  volumeUSD1H: Number;
+  timestamp: Number;
 }
 
 export const Dex = createEntity<IDex>("Dex", {
@@ -20,8 +22,17 @@ export const Dex = createEntity<IDex>("Dex", {
     type: Number,
     index: true,
   },
-  lastUpdate: {
+  volumeUSD24H: {
+    type: Number,
+    index: true,
+  },
+  volumeUSD1H: {
+    type: Number,
+    index: true,
+  },
+  timestamp: {
     type: Number,
     index: true,
   }
+
 });
