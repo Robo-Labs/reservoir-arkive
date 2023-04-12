@@ -68,6 +68,16 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
           address: token1
         }),
     );
+
+    const weth = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    const stables = ["0xdAC17F958D2ee523a2206206994597C13D831ec7", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "0x6B175474E89094C44Da98b954EedeAC495271d0F", "0x853d955aCEf822Db058eb8505911ED77F175b99e", "0x4Fabb145d64652a948d72533023f6E7A623C7C53", "0x0000000000085d4780B73119b644AE5ecd22b376", "0x8E870D67F660D95d5be530380D0eC0bd388289E1", "0x056Fd409E1d7A124BD7017459dFEa2F387b6d5Cd"]
+    const wethIsToken0 = token0 == weth
+    if(!stables.includes(token0) && !stables.includes(token1) && token0!=weth && token1!=weth){
+      // This isnt a WETH or a Stable pair, we cant handle this for now so we return
+      console.log(`Early exit for ${token0Name} && ${token1Name}`)
+      return 0;
+    }
+
     const decimals0: number = await store.retrieve(
       `${token0}:decimals`,
       async () =>
@@ -139,14 +149,28 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
     //
     cumulativeVolume0 = cumulativeVolume0 + (tradeDirection ? Number(amount0In) : Number(amount0Out))
     cumulativeVolume1 = cumulativeVolume1 + (tradeDirection ? Number(amount1Out) : Number(amount1In))
-    const weth = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
-    const wethIsToken0 = token0 == weth
-    let VolUSD: Number = wethIsToken0 ? (Number(ETHUSDPrice) * Number(tradeDirection ? amount0In : amount0Out))/(10 ** decimals0) : (Number(ETHUSDPrice) * Number(tradeDirection ? amount1Out : amount1In))/(10 ** decimals1)
+
+    let VolUSD: Number = 0;
+    if(stables.includes(token0) || stables.includes(token1)){
+      if(stables.includes(token0)){
+        VolUSD = tradeDirection ? Number(amount0In)/ (10 ** decimals0) : Number(amount0Out) / (10 ** decimals0)
+        VolUSD = VolUSD * (10**8)
+      } else if(stables.includes(token1)) {
+        VolUSD = tradeDirection ? Number(amount1Out)/ (10 ** decimals1) : Number(amount1In)/ (10 ** decimals1)
+        VolUSD = VolUSD * (10**8)
+      } else {
+        console.log("ERR: HOW DID WE GET HERE?")
+      }
+    } else {
+      VolUSD = wethIsToken0 ? (Number(ETHUSDPrice) * Number(tradeDirection ? amount0In : amount0Out))/(10 ** decimals0) : (Number(ETHUSDPrice) * Number(tradeDirection ? amount1Out : amount1In))/(10 ** decimals1)
+    }
+    
     cumulativeVolumeUSD = cumulativeVolumeUSD + Math.floor(VolUSD)
     let numerator = VolUSD * (10 ** (18-8))
     let denominator = wethIsToken0 ? tradeDirection ? (amount1Out * BigInt(10 ** (18-decimals1))) : (amount1In * BigInt(10 ** (18-decimals1))) : tradeDirection ? (amount0In * BigInt(10 ** (18-decimals0))) : (amount0Out * BigInt(10 ** (18-decimals0)))
     let priceUSD  = numerator / Number(denominator)
     VolUSD = parseFloat(formatUnits(BigInt(Math.floor(VolUSD)), 8))
+    //console.log(`volUSD: ${VolUSD} wethisToken0: ${wethIsToken0} token0Symbol: ${token0Symbol} token1Symbol: ${token1Symbol}`)
 
     const newSwap = new Swap({
       pair: event.address,
@@ -180,18 +204,6 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
     store.set(`${event.address}:lastSwapCumulativeVolUSD`, cumulativeVolumeUSD)
     await newSwap.save();
 
-    let dex = await store.retrieve(
-      `dex:${to}`,
-      () => {
-        return new Dex({
-          address: to,
-          name: labels[to.toLowerCase()] ? labels[to.toLowerCase()]['name'] : to,
-          cumulativeVolumeUSD: 0,
-          lastUpdate: 0
-        })
-      }
-    )
-
     const currentBlockNumber = event.blockNumber; // Assuming you have access to the current block number
 
     // Calculate the number of blocks in the past 24 hours
@@ -205,40 +217,48 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
     const blockNumber1HourAgo = Number(currentBlockNumber) - blocksInAHour;
     // Find the swap that happened closest to 24 hours ago but no more
     const dex24HoursAgo = await Dex.find({
+      address: to,
       timestamp: { $gte: blockNumber24HoursAgo }
     })
-      .sort({ timestamp: 1 }) // Sort by descending timestamp
+      .sort({ timestamp: 1 }) // Sort by ascending timestamp
       .limit(1) // Get the top 1 result
       .exec();
   
     const dex1HourAgo = await Dex.find({
+        address: to,
         timestamp: { $gte: blockNumber1HourAgo }
       })
-        .sort({ timestamp: 1 }) // Sort by descending timestamp
+        .sort({ timestamp: 1 }) // Sort by ascending timestamp
         .limit(1) // Get the top 1 result
         .exec();
-    // console.log(dex24HoursAgo.length > 0)
-    // if(dex24HoursAgo.length > 0){
-    //   console.log(`24H: ${dex24HoursAgo.length > 0 ? dex.timestamp >= dex24HoursAgo[0].timestamp ?  (dex.cumulativeVolumeUSD + VolUSD) - dex24HoursAgo[0].cumulativeVolumeUSD : VolUSD : VolUSD}`)
-    //   console.log(`volUSD: ${VolUSD}`)
-    // }
-    // console.log(dex1HourAgo.length > 0)
-    // if(dex1HourAgo.length > 0){
-    //   console.log(`1H: ${dex1HourAgo.length > 0 ? dex.timestamp >= dex1HourAgo[0].timestamp ? (dex.cumulativeVolumeUSD + VolUSD) - dex1HourAgo[0].cumulativeVolumeUSD : VolUSD : VolUSD}`)
-    //   console.log(`volUSD: ${VolUSD}`)
-    // }
-
+    const dexVol = await store.retrieve(
+      `dex:${to}:vol`,
+      () => {
+        return 0
+      }
+    )
+    const cumulativeVolumeDex = Number(dexVol) + Number(VolUSD)
+    store.set(`dex:${to}:vol`, cumulativeVolumeDex);
     let newDex = new Dex({
       address: to,
       name: labels[to.toLowerCase()] ? labels[to.toLowerCase()]['name'] : to,
-      cumulativeVolumeUSD: dex.cumulativeVolumeUSD + VolUSD,
-      volumeUSD24H: dex24HoursAgo.length > 0 ? dex.timestamp >= dex24HoursAgo[0].timestamp ?  (dex.cumulativeVolumeUSD + VolUSD) - dex24HoursAgo[0].cumulativeVolumeUSD : VolUSD : VolUSD,
-      volumeUSD1H: dex1HourAgo.length > 0 ? dex.timestamp >= dex1HourAgo[0].timestamp ? (dex.cumulativeVolumeUSD + VolUSD) - dex1HourAgo[0].cumulativeVolumeUSD : VolUSD : VolUSD,
+      cumulativeVolumeUSD: cumulativeVolumeDex,
+      volumeUSD24H: dex24HoursAgo.length > 0 ? cumulativeVolumeDex - dex24HoursAgo[0].cumulativeVolumeUSD : VolUSD,
+      volumeUSD1H: dex1HourAgo.length > 0 ? cumulativeVolumeDex - dex1HourAgo[0].cumulativeVolumeUSD : VolUSD,
       timestamp: parseFloat(formatUnits(event.blockNumber, 0))
-
     });
+    if(Number(dex24HoursAgo.length > 0 ? cumulativeVolumeDex - dex24HoursAgo[0].cumulativeVolumeUSD : VolUSD) < Number(0)){
+      console.log(`cumulativeVolumeDex: ${cumulativeVolumeDex}`)
+      console.log(`dexVol: ${dexVol}`)
+      console.log(`VolUSD: ${VolUSD}`)
+      console.log("newDex")
+      console.log(newDex.toJSON())
+      console.log("oldDex")
+      console.log(dex24HoursAgo[0].toJSON())
+    }
     //dex.cumulativeVolumeUSD += VolUSD
     //dex.lastUpdate = parseFloat(formatUnits(event.blockNumber, 0));
-    store.set(`dex:${to}`, newDex.save())
+    
+    await newDex.save();
     //parseFloat(formatUnits(BigInt(Math.floor(VolUSD)), 8))
   };
