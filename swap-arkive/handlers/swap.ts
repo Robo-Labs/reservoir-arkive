@@ -11,112 +11,124 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
   async (
     { event, client, store },
   ) => {
-    const { amount0In, amount1In, amount0Out, amount1Out, to } = event.args;
+    let { amount0In, amount1In, amount0Out, amount1Out, to } = event.args;
+    let router = to;
+    let params = {
+      hash: event.transactionHash
+    }
+    let tx = await client.getTransaction(params)
+    let from = tx.from
+    to = tx.to
     const address = event.address;
 
-    const token0: Address = await store.retrieve(
-      `${address}:token0`,
-      async () =>
-        await client.readContract({
-          abi: uniswapV2Pair,
-          functionName: "token0",
-          address,
-        }),
-    );
-    const token1: Address = await store.retrieve(
-      `${address}:token1`,
-      async () =>
-        await client.readContract({
-          abi: uniswapV2Pair,
-          functionName: "token1",
-          address,
-        }),
-    );
-    const token0Symbol: String = await store.retrieve(
-      `${address}:token0:symbol`,
-      async () =>
-        await client.readContract({
-          abi: erc20,
-          functionName: "symbol",
-          address: token0
-        }),
-    );
-    const token1Symbol: String = await store.retrieve(
-      `${address}:token1:symbol`,
-      async () =>
-        await client.readContract({
-          abi: erc20,
-          functionName: "symbol",
-          address: token1
-        }),
-    );
-    const token0Name: String = await store.retrieve(
-      `${address}:token0:name`,
-      async () =>
-        await client.readContract({
-          abi: erc20,
-          functionName: "name",
-          address: token0
-        }),
-    );
-    const token1Name: String = await store.retrieve(
-      `${address}:token1:name`,
-      async () =>
-        await client.readContract({
-          abi: erc20,
-          functionName: "name",
-          address: token1
-        }),
-    );
+    const [token0, token1] = await Promise.all([
+      store.retrieve(
+        `${address}:token0`,
+        async () =>
+          await client.readContract({
+            abi: uniswapV2Pair,
+            functionName: "token0",
+            address,
+          }),
+      ),
+      store.retrieve(
+        `${address}:token1`,
+        async () =>
+          await client.readContract({
+            abi: uniswapV2Pair,
+            functionName: "token1",
+            address,
+          }),
+      )
+    ]);
+    const chainlinkETHUSDOracle: Address = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
+    const [token0Symbol, token1Symbol, token0Name, token1Name, decimals0, decimals1, ETHUSDPrice, reserves] = await Promise.all([
+      store.retrieve(
+        `${address}:token0:symbol`,
+        async () =>
+          await client.readContract({
+            abi: erc20,
+            functionName: "symbol",
+            address: token0
+          }),
+      ),
+      store.retrieve(
+        `${address}:token1:symbol`,
+        async () =>
+          await client.readContract({
+            abi: erc20,
+            functionName: "symbol",
+            address: token1
+          }),
+      ),
+      store.retrieve(
+        `${address}:token0:name`,
+        async () =>
+          await client.readContract({
+            abi: erc20,
+            functionName: "name",
+            address: token0
+          }),
+      ),
+      store.retrieve(
+        `${address}:token1:name`,
+        async () =>
+          await client.readContract({
+            abi: erc20,
+            functionName: "name",
+            address: token1
+          }),
+      ),
+      store.retrieve(
+        `${token0}:decimals`,
+        async () =>
+          await client.readContract({
+            abi: erc20,
+            functionName: "decimals",
+            address: token0
+          }),
+      ),
+      store.retrieve(
+        `${token1}:decimals`,
+        async () =>
+          await client.readContract({
+            abi: erc20,
+            functionName: "decimals",
+            address: token1,
+          }),
+      ),
+      store.retrieve(
+        `${event.blockNumber}:ethusd`,
+        async () =>
+          await client.readContract({
+            abi: chainlink,
+            functionName: "latestAnswer",
+            address: chainlinkETHUSDOracle,
+            blockNumber: event.blockNumber
+          }),
+      ),
+      store.retrieve(
+        `${event.blockNumber}:${address}:reserves`,
+        async () =>
+          await client.readContract({
+            abi: uniswapV2Pair,
+            functionName: "getReserves",
+            address: address,
+            blockNumber: event.blockNumber
+          }),
+      )
+    ]);
 
     const weth = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
     const stables = ["0xdAC17F958D2ee523a2206206994597C13D831ec7", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "0x6B175474E89094C44Da98b954EedeAC495271d0F", "0x853d955aCEf822Db058eb8505911ED77F175b99e", "0x4Fabb145d64652a948d72533023f6E7A623C7C53", "0x0000000000085d4780B73119b644AE5ecd22b376", "0x8E870D67F660D95d5be530380D0eC0bd388289E1", "0x056Fd409E1d7A124BD7017459dFEa2F387b6d5Cd"]
     const wethIsToken0 = token0 == weth
+    const wethIsToken1 = token1 == weth
+    const wethIsUsed = wethIsToken0 || wethIsToken1
     if(!stables.includes(token0) && !stables.includes(token1) && token0!=weth && token1!=weth){
       // This isnt a WETH or a Stable pair, we cant handle this for now so we return
       console.log(`Early exit for ${token0Name} && ${token1Name}`)
       return 0;
     }
-
-    const decimals0: number = await store.retrieve(
-      `${token0}:decimals`,
-      async () =>
-        await client.readContract({
-          abi: erc20,
-          functionName: "decimals",
-          address: token0
-        }),
-    );
-    const decimals1: number = await store.retrieve(
-      `${token1}:decimals`,
-      async () =>
-        await client.readContract({
-          abi: erc20,
-          functionName: "decimals",
-          address: token1,
-        }),
-    );
-    const chainlinkETHUSDOracle: Address = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
-    const ETHUSDPrice = await store.retrieve(
-      `${event.blockNumber}:ethusd`,
-      async () =>
-        await client.readContract({
-          abi: chainlink,
-          functionName: "latestAnswer",
-          address: chainlinkETHUSDOracle,
-          blockNumber: event.blockNumber
-        }),
-    );
-    const reserves = await store.retrieve(
-      `${event.blockNumber}:${address}:reserves`,
-      async () =>
-        await client.readContract({
-          abi: uniswapV2Pair,
-          functionName: "getReserves",
-          address: address,
-          blockNumber: event.blockNumber
-        }),
-    );
     //console.log(ETHUSDPrice)
 
     // Figure out price0 and price1
@@ -130,23 +142,47 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
 
     let cumulativeVolume0: number  = await store.retrieve(
       `${event.address}:lastSwapCumulativeVol0`,
-      () => {
-        return 0  
+      async () => {
+        const latest = await Swap.find({
+          pair: event.address,
+        })
+          .sort({ timestamp: -1 }) // Sort by decending timestamp
+          .limit(1) // Get the top 1 result
+          .exec();
+        if(latest[0])
+          return Math.floor(Number(latest[0].cumulativeVolume0) * (10 ** decimals0))
+        return 0
       }
     )
     let cumulativeVolume1: number  = await store.retrieve(
       `${event.address}:lastSwapCumulativeVol1`,
-      () => {
-        return 0  
+      async () => {
+        const latest = await Swap.find({
+          pair: event.address
+        })
+          .sort({ timestamp: -1 }) // Sort by decending timestamp
+          .limit(1) // Get the top 1 result
+          .exec();
+        if(latest[0])
+          return Math.floor(Number(latest[0].cumulativeVolume1) * (10 ** decimals1))
+        return 0
       }
     )
     let cumulativeVolumeUSD: number  = await store.retrieve(
       `${event.address}:lastSwapCumulativeVolUSD`,
-      () => {
-        return 0  
+      async () => {
+        const latest = await Swap.find({
+          pair: event.address
+        })
+          .sort({ timestamp: -1 }) // Sort by decending timestamp
+          .limit(1) // Get the top 1 result
+          .exec();
+        if(latest[0])
+          return latest[0].cumulativeVolumeUSD
+        return 0
       }
     )
-    //
+    // console.log(`cumVol0: ${cumulativeVolume0}, cumVol1: ${cumulativeVolume1}, cumVolUSD: ${cumulativeVolumeUSD} DEX: ${labels[to.toLowerCase()] ? labels[to.toLowerCase()]['name'] : to}`)
     cumulativeVolume0 = cumulativeVolume0 + (tradeDirection ? Number(amount0In) : Number(amount0Out))
     cumulativeVolume1 = cumulativeVolume1 + (tradeDirection ? Number(amount1Out) : Number(amount1In))
 
@@ -167,14 +203,41 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
     
     cumulativeVolumeUSD = cumulativeVolumeUSD + Math.floor(VolUSD)
     let numerator = VolUSD * (10 ** (18-8))
-    let denominator = wethIsToken0 ? tradeDirection ? (amount1Out * BigInt(10 ** (18-decimals1))) : (amount1In * BigInt(10 ** (18-decimals1))) : tradeDirection ? (amount0In * BigInt(10 ** (18-decimals0))) : (amount0Out * BigInt(10 ** (18-decimals0)))
+    let denominator = BigInt(0);
+    if(wethIsUsed){
+      denominator = wethIsToken0 ? tradeDirection ? (amount1Out * BigInt(10 ** (18-decimals1))) : (amount1In * BigInt(10 ** (18-decimals1))) : tradeDirection ? (amount0In * BigInt(10 ** (18-decimals0))) : (amount0Out * BigInt(10 ** (18-decimals0)))
+    } else {
+      // console.log(`${amount0In}, ${amount1In}, ${amount0Out}, ${amount1Out}`)
+      // console.log(`decimals0: ${decimals0}, decimals1: ${decimals1}`)
+      if(stables.includes(token0)){
+        denominator = tradeDirection ? (amount1Out * BigInt(10 ** (18-decimals1))) : (amount1In * BigInt(10 ** (18-decimals1)))
+      } else if(stables.includes(token1)) {
+        denominator = tradeDirection ? (amount0In * BigInt(10 ** (18-decimals0))) : (amount0Out * BigInt(10 ** (18-decimals0)))
+      } else {
+        // console.log("ERR: HOW DID WE GET HERE?")
+      }
+      // console.log(`numerator  : ${numerator}\ndenominator: ${denominator}`)
+      // console.log(`**** stables prices: $${numerator / Number(denominator)} ****`)
+      // console.log(`***** ${token0Symbol}/${token1Symbol} ****`)
+    }
     let priceUSD  = numerator / Number(denominator)
     VolUSD = parseFloat(formatUnits(BigInt(Math.floor(VolUSD)), 8))
+    const timestamp = await store.retrieve(
+      `${event.blockHash}:timestamp`,
+      async () => {
+        return Number((await client.getBlock({ blockHash: event.blockHash })).timestamp);
+      });
+    store.set(`${event.blockHash}:timestamp`, timestamp);
     //console.log(`volUSD: ${VolUSD} wethisToken0: ${wethIsToken0} token0Symbol: ${token0Symbol} token1Symbol: ${token1Symbol}`)
-
     const newSwap = new Swap({
       pair: event.address,
       hash: event.transactionHash,
+      to: to,
+      toName:labels[to.toLowerCase()] ? labels[to.toLowerCase()]['name'] : to,
+      from: from,
+      fromName: labels[from.toLowerCase()] ? labels[from.toLowerCase()]['name'] : from,
+      token0Address: token0,
+      token1Address: token1,
       token0Symbol,
       token1Symbol,
       token0Name,
@@ -183,11 +246,14 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
       amountOut: tradeDirection ? parseFloat(formatUnits(amount1Out,18)) : parseFloat(formatUnits(amount0Out, 18)),
       amountUSD: VolUSD,
       tradeDirection: tradeDirection,
-      dex: labels[to.toLowerCase()] ? labels[to.toLowerCase()]['name'] : to,
-      timestamp: parseFloat(formatUnits(event.blockNumber, 0)),
+      router: router,
+      routerName: labels[router.toLowerCase()] ? labels[router.toLowerCase()]['name'] : router,
+      timestamp: timestamp,
+      block: parseFloat(formatUnits(event.blockNumber, 0)),
       price0: price,
       price1: 1/price,
       priceUSD,
+      WETHUSD: Number(ETHUSDPrice),
       cumulativeVolume0: parseFloat(formatUnits(BigInt(cumulativeVolume0), decimals0)).toFixed(decimals0),
       cumulativeVolume1: parseFloat(formatUnits(BigInt(cumulativeVolume1), decimals1)).toFixed(decimals1),
       cumulativeVolumeUSD: parseFloat(formatUnits(BigInt(Math.floor(cumulativeVolumeUSD)), 8)),
@@ -218,7 +284,7 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
     // Find the swap that happened closest to 24 hours ago but no more
     const dex24HoursAgo = await Dex.find({
       address: to,
-      timestamp: { $gte: blockNumber24HoursAgo }
+      block: { $gte: blockNumber24HoursAgo }
     })
       .sort({ timestamp: 1 }) // Sort by ascending timestamp
       .limit(1) // Get the top 1 result
@@ -226,26 +292,43 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
   
     const dex1HourAgo = await Dex.find({
         address: to,
-        timestamp: { $gte: blockNumber1HourAgo }
+        block: { $gte: blockNumber1HourAgo }
       })
         .sort({ timestamp: 1 }) // Sort by ascending timestamp
         .limit(1) // Get the top 1 result
         .exec();
-    const dexVol = await store.retrieve(
+      
+    // Get most recent dex cumulative volume  or return 0
+    const oldDex = await store.retrieve(
       `dex:${to}:vol`,
-      () => {
-        return 0
+      async () => {
+        const latest = await Dex.find({
+          address: to,
+        })
+          .sort({ timestamp: -1 }) // Sort by decending timestamp
+          .limit(1) // Get the top 1 result
+          .exec();
+        
+        if(latest[0]){
+          return latest[0]
+        } else {
+          return undefined // Okay well there must not be any entries in the db for this Dex/Router
+        }
       }
     )
+    let dexVol = oldDex ? oldDex.cumulativeVolumeUSD : Number(0);
+    let dexName = labels[to.toLowerCase()] ? labels[to.toLowerCase()]['name'] : to;
+    //console.log(`Dex: ${dexName}, vol: ${dexVol}`);
     const cumulativeVolumeDex = Number(dexVol) + Number(VolUSD)
-    store.set(`dex:${to}:vol`, cumulativeVolumeDex);
+    
     let newDex = new Dex({
       address: to,
       name: labels[to.toLowerCase()] ? labels[to.toLowerCase()]['name'] : to,
       cumulativeVolumeUSD: cumulativeVolumeDex,
       volumeUSD24H: dex24HoursAgo.length > 0 ? cumulativeVolumeDex - dex24HoursAgo[0].cumulativeVolumeUSD : VolUSD,
       volumeUSD1H: dex1HourAgo.length > 0 ? cumulativeVolumeDex - dex1HourAgo[0].cumulativeVolumeUSD : VolUSD,
-      timestamp: parseFloat(formatUnits(event.blockNumber, 0))
+      timestamp: timestamp,
+      block: parseFloat(formatUnits(event.blockNumber, 0))
     });
     if(Number(dex24HoursAgo.length > 0 ? cumulativeVolumeDex - dex24HoursAgo[0].cumulativeVolumeUSD : VolUSD) < Number(0)){
       console.log(`cumulativeVolumeDex: ${cumulativeVolumeDex}`)
@@ -258,7 +341,11 @@ export const swapHandler: EventHandlerFor<typeof uniswapV2Pair, "Swap"> =
     }
     //dex.cumulativeVolumeUSD += VolUSD
     //dex.lastUpdate = parseFloat(formatUnits(event.blockNumber, 0));
+    //store.set(`dex:${to}:vol`, cumulativeVolumeDex);
+    //await newDex.save();
+    store.set(`dex:${to}:vol`, await newDex.save());
+    //console.log(answer)
+    //console.log(`from: ${tx.from}\nto:   ${tx.to}\n(to): ${to}`)
     
-    await newDex.save();
     //parseFloat(formatUnits(BigInt(Math.floor(VolUSD)), 8))
   };

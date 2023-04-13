@@ -7,6 +7,7 @@ interface IDex {
   volumeUSD24H: Number;
   volumeUSD1H: Number;
   timestamp: Number;
+  block: Number;
 }
 
 export const Dex = createEntity<IDex>("Dex", {
@@ -31,6 +32,10 @@ export const Dex = createEntity<IDex>("Dex", {
     index: true,
   },
   timestamp: {
+    type: Number,
+    index: true,
+  },
+  block: {
     type: Number,
     index: true,
   }
