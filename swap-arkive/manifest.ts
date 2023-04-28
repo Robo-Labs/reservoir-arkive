@@ -1,6 +1,6 @@
 import { Manifest } from "./deps.ts";
 import uniswapV3Pair from "./abis/uniswapV3Pair.ts";
-import { Swap } from "./entities/swap.ts";
+import { Swap } from "./entities/swapv3.ts";
 import { Dex } from "./entities/dex.ts";
 import { swapHandler } from "./handlers/swapv3.ts";
 
@@ -11,7 +11,7 @@ manifest
 	.addEntity(Dex)
 	.addChain("mainnet", { blockRange: 5n })
 	.addContract(uniswapV3Pair)
-	.addSource("*", 16962025n)
+	.addSource("*", 17076984n)
 	.addEventHandler("Swap", swapHandler);
 
 export default manifest.build();

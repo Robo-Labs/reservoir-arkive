@@ -1,11 +1,12 @@
-import { EventHandlerFor, formatUnits } from "../deps.ts";
+import { EventHandlerFor, formatUnits, uniUtils } from "../deps.ts";
 import uniswapV3Pair from "../abis/uniswapV3Pair.ts";
 import erc20 from "../abis/erc20.ts";
 import chainlink from "../abis/chainlink.ts";
-import { Swap } from "../entities/swap.ts";
-import { Dex, IDex} from "../entities/dex.ts";
+import { Swap } from "../entities/swapv3.ts";
+import { Dex } from "../entities/dex.ts";
 import { Address } from "https://deno.land/x/robo_arkiver@v0.3.4/src/deps.ts";
 import labels from "./lib/labels.ts";
+import Uni from "npm:@thanpolas/univ3prices";
 
 export const swapHandler: EventHandlerFor<typeof uniswapV3Pair, "Swap"> =
   async (
@@ -21,7 +22,7 @@ export const swapHandler: EventHandlerFor<typeof uniswapV3Pair, "Swap"> =
     const to = tx.to
     const address = event.address;
 
-    const [token0, token1, fee] = await Promise.all([
+    const [token0, token1, fee, spacing] = await Promise.all([
       store.retrieve(
         `${address}:token0`,
         async () =>
@@ -46,6 +47,15 @@ export const swapHandler: EventHandlerFor<typeof uniswapV3Pair, "Swap"> =
           await client.readContract({
             abi: uniswapV3Pair,
             functionName: "fee",
+            address,
+          }),
+      ),
+      store.retrieve(
+        `${address}:spacing`,
+        async () =>
+          await client.readContract({
+            abi: uniswapV3Pair,
+            functionName: "tickSpacing",
             address,
           }),
       )
@@ -144,12 +154,7 @@ export const swapHandler: EventHandlerFor<typeof uniswapV3Pair, "Swap"> =
     //const tradeDirection: boolean = (amount0Out < amount1Out); // False(0) if direction is token0, True(1) if direction is token1
     
     const tradeDirection: boolean = (amount0 < amount1)
-    let price = 0
-    // if(tradeDirection){
-    //   price = Number((amount0In*BigInt(1e18 * (10 ** (18 - decimals0))))/(amount1Out * BigInt(10 ** (18 - decimals0))))/(1e18 * (10 ** (18 - decimals0)))
-    // } else {
-    //   price = 1/((Number((amount1In*BigInt(1e18 * (10 ** (18 - decimals1))))/amount0Out * BigInt(10 ** (18 - decimals0))))/(1e18 * (10 ** (18 - decimals1))))
-    // }
+    let price = ((Math.abs(Number(amount0))/(10**decimals0))*(10**18)) / ((Math.abs(Number(amount1))/(10**decimals1))*(10**18))
 
     let cumulativeVolume0: number  = await store.retrieve(
       `${event.address}:lastSwapCumulativeVol0`,
@@ -157,7 +162,7 @@ export const swapHandler: EventHandlerFor<typeof uniswapV3Pair, "Swap"> =
         const latest = await Swap.find({
           pair: event.address,
         })
-          .sort({ timestamp: -1 }) // Sort by decending timestamp
+          .sort({ timestamp: -1 }) // Sort by descending timestamp
           .limit(1) // Get the top 1 result
           .exec();
         if(latest[0])
@@ -171,7 +176,7 @@ export const swapHandler: EventHandlerFor<typeof uniswapV3Pair, "Swap"> =
         const latest = await Swap.find({
           pair: event.address
         })
-          .sort({ timestamp: -1 }) // Sort by decending timestamp
+          .sort({ timestamp: -1 }) // Sort by descending timestamp
           .limit(1) // Get the top 1 result
           .exec();
         if(latest[0])
@@ -185,7 +190,7 @@ export const swapHandler: EventHandlerFor<typeof uniswapV3Pair, "Swap"> =
         const latest = await Swap.find({
           pair: event.address
         })
-          .sort({ timestamp: -1 }) // Sort by decending timestamp
+          .sort({ timestamp: -1 }) // Sort by descending timestamp
           .limit(1) // Get the top 1 result
           .exec();
         if(latest[0])
@@ -206,31 +211,31 @@ export const swapHandler: EventHandlerFor<typeof uniswapV3Pair, "Swap"> =
       VolUSD = Math.abs(Number(amount1)) / (10 ** decimals1)
       VolUSD = VolUSD * (10**8)
     } else {
-      VolUSD = 0 //wethIsToken0 ? (Number(ETHUSDPrice) * Number(tradeDirection ? amount0In : amount0Out))/(10 ** decimals0) : (Number(ETHUSDPrice) * Number(tradeDirection ? amount1Out : amount1In))/(10 ** decimals1)
+      VolUSD = wethIsToken0 ? (Number(ETHUSDPrice) * Math.abs(Number(amount0)))/(10 ** decimals0) : (Number(ETHUSDPrice) * Math.abs(Number(amount1)))/(10 ** decimals1)
     }
-    console.log(`VolUSD: ${VolUSD} ${token0Name}/${token1Name}`)
+    VolUSD = Math.floor(Number(VolUSD)).toFixed(8)
+    //console.log(`VolUSD: ${VolUSD} ${token0Name}/${token1Name}`)
     
-    cumulativeVolumeUSD = cumulativeVolumeUSD + Math.floor(VolUSD)
-    // let numerator = VolUSD * (10 ** (18-8))
-    // let denominator = BigInt(0);
-    // if(wethIsUsed){
-    //   denominator = wethIsToken0 ? tradeDirection ? (amount1Out * BigInt(10 ** (18-decimals1))) : (amount1In * BigInt(10 ** (18-decimals1))) : tradeDirection ? (amount0In * BigInt(10 ** (18-decimals0))) : (amount0Out * BigInt(10 ** (18-decimals0)))
-    // } else {
-    //   // console.log(`${amount0In}, ${amount1In}, ${amount0Out}, ${amount1Out}`)
-    //   // console.log(`decimals0: ${decimals0}, decimals1: ${decimals1}`)
-    //   if(stables.includes(token0)){
-    //     denominator = tradeDirection ? (amount1Out * BigInt(10 ** (18-decimals1))) : (amount1In * BigInt(10 ** (18-decimals1)))
-    //   } else if(stables.includes(token1)) {
-    //     denominator = tradeDirection ? (amount0In * BigInt(10 ** (18-decimals0))) : (amount0Out * BigInt(10 ** (18-decimals0)))
-    //   } else {
-    //     // console.log("ERR: HOW DID WE GET HERE?")
-    //   }
-    //   // console.log(`numerator  : ${numerator}\ndenominator: ${denominator}`)
-    //   // console.log(`**** stables prices: $${numerator / Number(denominator)} ****`)
-    //   // console.log(`***** ${token0Symbol}/${token1Symbol} ****`)
-    // }
-    let priceUSD  = 0 //numerator / Number(denominator)
+    cumulativeVolumeUSD = cumulativeVolumeUSD + Number(VolUSD)
+    let numerator = VolUSD * (10 ** (18-8))
+    let denominator = Number(0)
+    if(stables.includes(token0)){
+      denominator = (Math.abs(Number(amount1))/(10**decimals1))*(10**18)
+    } else if(stables.includes(token1)) {
+      denominator = (Math.abs(Number(amount0))/(10**decimals0))*(10**18)
+    } else {
+      denominator = wethIsToken0 ? (10**18)*(Math.abs(Number(amount1))/(10**decimals1)) : (10**18)*(Math.abs(Number(amount0))/(10**decimals0))
+    }
+    //console.log(`numerator  : ${numerator}\ndenominator: ${denominator}`)
+    //console.log(`**** stables prices: $${numerator / Number(denominator)} ****`)
+    //console.log(`***** ${token0Symbol}/${token1Symbol} ****`)
+    let priceUSD  = numerator / denominator
+    priceUSD = priceUSD.toFixed(8)
     VolUSD = parseFloat(formatUnits(BigInt(Math.floor(VolUSD)), 8))
+    // console.log(`priceUSD: ${priceUSD}`)
+    // console.log(`VolUSD: ${VolUSD}`)
+    // console.log(`Pair: ${token0Symbol}/${token1Symbol}`)
+    
     const timestamp = await store.retrieve(
       `${event.blockHash}:timestamp`,
       async () => {
@@ -238,6 +243,9 @@ export const swapHandler: EventHandlerFor<typeof uniswapV3Pair, "Swap"> =
       });
     store.set(`${event.blockHash}:timestamp`, timestamp);
     //console.log(`volUSD: ${VolUSD} wethisToken0: ${wethIsToken0} token0Symbol: ${token0Symbol} token1Symbol: ${token1Symbol}`)
+    //console.log(`Liquidity: ${String(liquidity)}\nSpacing ${String(spacing)}`)
+    let reserves = Uni.getAmountsForCurrentLiquidity([String(decimals0), String(decimals1)], String(liquidity), String(sqrtPriceX96), String(spacing), {tickStep: 1000} )
+    //console.log(`reserves: ${reserves}`)
     const newSwap = new Swap({
       pair: event.address,
       hash: event.transactionHash,
@@ -259,16 +267,16 @@ export const swapHandler: EventHandlerFor<typeof uniswapV3Pair, "Swap"> =
       routerName: labels[router.toLowerCase()] ? labels[router.toLowerCase()]['name'] : router,
       timestamp: timestamp,
       block: parseFloat(formatUnits(event.blockNumber, 0)),
-      price0: 0,//price,
-      price1: 0,//1/price,
-      priceUSD: 0,
+      price0: price,
+      price1: 1/price,
+      priceUSD,
       WETHUSD: Number(ETHUSDPrice),
       cumulativeVolume0: parseFloat(formatUnits(BigInt(cumulativeVolume0), decimals0)).toFixed(decimals0),
       cumulativeVolume1: parseFloat(formatUnits(BigInt(cumulativeVolume1), decimals1)).toFixed(decimals1),
       cumulativeVolumeUSD: parseFloat(formatUnits(BigInt(Math.floor(cumulativeVolumeUSD)), 8)),
       cumulativeFeesUSD: parseFloat(formatUnits(BigInt(Math.floor(cumulativeVolumeUSD)), 8))*(fee/1000000), // trust the process
-      //reserves0: parseFloat(formatUnits(reserves[0], decimals0)),
-      //reserves1: parseFloat(formatUnits(reserves[1], decimals1)),
+      reserves0: reserves[0],
+      reserves1: reserves[1],
       USDTVL: 0, //wethIsToken0 ? 2 * (parseFloat(formatUnits(reserves[0], (decimals0) )) * parseFloat(formatUnits(ETHUSDPrice, 8))) : 2 * (parseFloat(formatUnits(reserves[1], (decimals1) )) * parseFloat(formatUnits(ETHUSDPrice, 8)))
   });
 
@@ -332,7 +340,7 @@ export const swapHandler: EventHandlerFor<typeof uniswapV3Pair, "Swap"> =
     
     let newDex = new Dex({
       address: to,
-      name: labels[to.toLowerCase()] ? labels[to.toLowerCase()]['name'] : to,
+      name: dexName,
       cumulativeVolumeUSD: cumulativeVolumeDex,
       volumeUSD24H: dex24HoursAgo.length > 0 ? cumulativeVolumeDex - dex24HoursAgo[0].cumulativeVolumeUSD : VolUSD,
       volumeUSD1H: dex1HourAgo.length > 0 ? cumulativeVolumeDex - dex1HourAgo[0].cumulativeVolumeUSD : VolUSD,

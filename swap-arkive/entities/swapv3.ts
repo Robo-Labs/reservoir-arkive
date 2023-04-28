@@ -7,6 +7,8 @@ interface ISwap {
   toName: String;
   from: String;
   fromName: String;
+  router: String;
+  routerName: String;
   token0Address: String;
   token1Address: String;
   token0Symbol: String;
@@ -17,8 +19,6 @@ interface ISwap {
   amountOut: Number;
   amountUSD: Number;
   tradeDirection: Boolean;
-  router: String;
-  routerName: String;
   timestamp: Number;
   block: Number;
   price0: Number,
@@ -29,8 +29,8 @@ interface ISwap {
   cumulativeVolume1: Number,
   cumulativeVolumeUSD: Number,
   cumulativeFeesUSD: Number,
-  // reserves0: Number,
-  // reserves1: Number,
+  reserves0: Number,
+  reserves1: Number,
   USDTVL: Number,
   liquidity: Number,
   tick: Number,
@@ -53,6 +53,14 @@ export const Swap = createEntity<ISwap>("Swap", {
     index: true,
   },
   fromName: {
+    type: String,
+    index: true,
+  },
+  router: {
+    type: String,
+    index: true,
+  },
+  routerName: {
     type: String,
     index: true,
   },
@@ -90,14 +98,6 @@ export const Swap = createEntity<ISwap>("Swap", {
     type: Boolean,
     index: true,
   },
-  router: {
-    type: String,
-    index: true,
-  },
-  routerName: {
-    type: String,
-    index: true,
-  },
   timestamp: {
     type: Number,
     index: true,
@@ -126,8 +126,8 @@ export const Swap = createEntity<ISwap>("Swap", {
     type: Number,
     index: true,
   },
-  // reserves0: Number,
-  // reserves1: Number,
+  reserves0: Number,
+  reserves1: Number,
   USDTVL: Number,
   liquidity: Number,
   tick: Number,
