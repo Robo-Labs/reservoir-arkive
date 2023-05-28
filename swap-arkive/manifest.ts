@@ -1,17 +1,15 @@
-import { Manifest } from "./deps.ts";
-import uniswapV3Pair from "./abis/uniswapV3Pair.ts";
-import { Swap } from "./entities/swapv3.ts";
-import { Dex } from "./entities/dex.ts";
-import { swapHandler } from "./handlers/swapv3.ts";
+import { Manifest } from 'https://deno.land/x/robo_arkiver/mod.ts'
+import reservoirPair from './abis/reservoirPair.ts'
+import { Entities } from './entities/entities.ts'
+import { reservoirSwapHandler } from './handlers/swapReservoir.ts'
 
-const manifest = new Manifest("swap-arkive-v2");
+const manifest = new Manifest('reservoir')
 
 manifest
-	.addEntity(Swap)
-	.addEntity(Dex)
-	.addChain("mainnet", { blockRange: 5n })
-	.addContract(uniswapV3Pair)
-	.addSource("*", 17076984n)
-	.addEventHandler("Swap", swapHandler);
+	.addEntities(Entities)
+	.chain('avalanche', { blockRange: 500n })
+	.contract(reservoirPair)
+	.addSources({ '0xe9cEFa5eeB3d6e8C8AB9e65F164Ac6bac1eeFC9D': 22206754n })
+	.addEventHandlers({ 'Swap': reservoirSwapHandler })
 
-export default manifest.build();
+export default manifest.build()
