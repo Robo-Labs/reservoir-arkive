@@ -140,6 +140,16 @@ interface IDex {
   volumeUSD1H: Number;
   volume024H: Number;
   volume01H: Number;
+  fees024H: Number;
+  fees01H: Number;
+  APR24H: Number;
+  APR1H: Number;
+  lenderAPR0: Number;
+  lenderAPR1: Number;
+  token0Managed: Number;
+  token1Managed: Number;
+  USDTVL: Number;
+  token0TVL: Number;
   timestamp: Number;
   block: Number;
 }
@@ -175,6 +185,46 @@ export const Dex = createEntity<IDex>("Dex", {
     index: true,
   },
   volume01H: {
+    type: Number,
+    index: true,
+  },
+  fees024H: {
+    type: Number,
+    index: true,
+  },
+  fees01H: {
+    type: Number,
+    index: true,
+  },
+  APR24H: {
+    type: Number,
+    index: true,
+  },
+  APR1H: {
+    type: Number,
+    index: true,
+  },
+  lenderAPR0: {
+    type: Number,
+    index: true,
+  },
+  lenderAPR1: {
+    type: Number,
+    index: true,
+  },
+  token0Managed: {
+    type: Number,
+    index: true,
+  },
+  token1Managed: {
+    type: Number,
+    index: true,
+  },
+  USDTVL: {
+    type: Number,
+    index: true,
+  },
+  token0TVL: {
     type: Number,
     index: true,
   },

@@ -3,6 +3,7 @@ import { EventHandlerFor, formatUnits } from "../deps.ts";
 import reservoirPair from "../abis/reservoirPair.ts";
 import erc20 from "../abis/erc20.ts";
 import chainlink from "../abis/chainlink.ts";
+import aavePool from "../abis/aavePool.ts"
 //import { Swap } from "../entities/swap.ts";
 import { Dex, Swap } from "../entities/entities.ts";
 import { Address } from "https://deno.land/x/robo_arkiver@v0.3.4/src/deps.ts";
@@ -16,6 +17,7 @@ export const reservoirSwapHandler: EventHandlerFor<typeof reservoirPair, "Swap">
   ) => {
     console.log("handle")
     let { sender, zeroForOne, amountIn, amountOut, to } = event.args;
+    const AAVE_POOL = '0xf319Bb55994dD1211bC34A7A26A336C6DD0B1b00'
     console.log(sender)
     console.log(zeroForOne)
     console.log(amountIn)
@@ -63,7 +65,7 @@ export const reservoirSwapHandler: EventHandlerFor<typeof reservoirPair, "Swap">
       )
     ]);
     const chainlinkETHUSDOracle: Address = "0x86d67c3D38D2bCeE722E601025C25a575021c6EA"
-    const [token0Symbol, token1Symbol, token0Name, token1Name, decimals0, decimals1, ETHUSDPrice, reserves, swapFee, platformFee] = await Promise.all([
+    const [token0Symbol, token1Symbol, token0Name, token1Name, decimals0, decimals1, ETHUSDPrice, reserves, swapFee, platformFee, token0Managed, token1Managed] = await Promise.all([
       store.retrieve(
         `${address}:token0:symbol`,
         async () =>
@@ -157,8 +159,55 @@ export const reservoirSwapHandler: EventHandlerFor<typeof reservoirPair, "Swap">
             address: address,
             blockNumber: event.blockNumber
           }),
+      ),
+      store.retrieve(
+        `${event.blockNumber}:${address}:token0Managed`,
+        async () =>
+          await client.readContract({
+            abi: reservoirPair,
+            functionName: "token0Managed",
+            address: address,
+            blockNumber: event.blockNumber
+          }),
+      ),
+      store.retrieve(
+        `${event.blockNumber}:${address}:token1Managed`,
+        async () =>
+          await client.readContract({
+            abi: reservoirPair,
+            functionName: "token1Managed",
+            address: address,
+            blockNumber: event.blockNumber
+          }),
       )
     ]);
+
+    let tempTokenMap = {'0x5D60473C5Cb323032d6fdFf42380B50E2AE4d245': '0x6a17716Ce178e84835cfA73AbdB71cb455032456', '0x6e9FDaE1Fe20b0A5a605C879Ae14030a0aE99cF9':'0x0343A9099f42868C1E8Ae9e501Abc043FD5fD816' }
+    let mapped0 = tempTokenMap[token0]
+    let mapped1 = tempTokenMap[token1]
+
+    let reserveData0 = await store.retrieve(
+      `${event.blockNumber}:aave:reserveData0`,
+      async () =>
+        await client.readContract({
+          args: [mapped0],
+          abi: aavePool,
+          functionName: "getReserveData",
+          address: AAVE_POOL,
+          blockNumber: event.blockNumber
+        })
+    )
+    let reserveData1 = await store.retrieve(
+      `${event.blockNumber}:aave:reserveData1`,
+      async () =>
+        await client.readContract({
+          args: [mapped1],
+          abi: aavePool,
+          functionName: "getReserveData",
+          address: AAVE_POOL,
+          blockNumber: event.blockNumber
+        })
+    )
 
     const weth = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
     //const stables = ["0xdAC17F958D2ee523a2206206994597C13D831ec7", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "0x6B175474E89094C44Da98b954EedeAC495271d0F", "0x853d955aCEf822Db058eb8505911ED77F175b99e", "0x4Fabb145d64652a948d72533023f6E7A623C7C53", "0x0000000000085d4780B73119b644AE5ecd22b376", "0x8E870D67F660D95d5be530380D0eC0bd388289E1", "0x056Fd409E1d7A124BD7017459dFEa2F387b6d5Cd"]
@@ -271,7 +320,8 @@ export const reservoirSwapHandler: EventHandlerFor<typeof reservoirPair, "Swap">
       });
     store.set(`${event.blockHash}:timestamp`, timestamp);
     //console.log(`volUSD: ${VolUSD} wethisToken0: ${wethIsToken0} token0Symbol: ${token0Symbol} token1Symbol: ${token1Symbol}`)
-    
+    const USDTVL = wethIsUsed ? (wethIsToken0 ? 2 * (parseFloat(formatUnits(reserves[0], (decimals0) )) * parseFloat(formatUnits(ETHUSDPrice, 8))) : 2 * (parseFloat(formatUnits(reserves[1], (decimals1) )) * parseFloat(formatUnits(ETHUSDPrice, 8)))) : parseFloat(formatUnits(reserves[0], decimals0)) + parseFloat(formatUnits(reserves[1], decimals1))
+    const SWAP_FEE = (Number(swapFee)/100000000)
     const newSwap = new Swap({
       pair: event.address,
       hash: event.transactionHash,
@@ -300,10 +350,10 @@ export const reservoirSwapHandler: EventHandlerFor<typeof reservoirPair, "Swap">
       cumulativeVolume0: parseFloat(formatUnits(BigInt(cumulativeVolume0), decimals0)).toFixed(decimals0),
       cumulativeVolume1: parseFloat(formatUnits(BigInt(cumulativeVolume1), decimals1)).toFixed(decimals1),
       cumulativeVolumeUSD: parseFloat(formatUnits(BigInt(Math.floor(cumulativeVolumeUSD)), 8)),
-      cumulativeFeesUSD: parseFloat(formatUnits(BigInt(Math.floor(cumulativeVolumeUSD)), 8))*(Number(swapFee)/100000000), // trust the process
+      cumulativeFeesUSD: parseFloat(formatUnits(BigInt(Math.floor(cumulativeVolumeUSD)), 8))*SWAP_FEE, // trust the process
       reserves0: parseFloat(formatUnits(reserves[0], decimals0)),
       reserves1: parseFloat(formatUnits(reserves[1], decimals1)),
-      USDTVL: wethIsUsed ? (wethIsToken0 ? 2 * (parseFloat(formatUnits(reserves[0], (decimals0) )) * parseFloat(formatUnits(ETHUSDPrice, 8))) : 2 * (parseFloat(formatUnits(reserves[1], (decimals1) )) * parseFloat(formatUnits(ETHUSDPrice, 8)))) : parseFloat(formatUnits(reserves[0], decimals0)) + parseFloat(formatUnits(reserves[1], decimals1))
+      USDTVL
   });
 
 
@@ -371,6 +421,15 @@ export const reservoirSwapHandler: EventHandlerFor<typeof reservoirPair, "Swap">
     dexVol024H = parseFloat(formatUnits(Number(dexVol024H) + Number(zeroForOne ? amountIn : amountOut), decimals0)).toFixed(decimals0)
     dexVol01H = parseFloat(formatUnits(Number(dexVol01H) + Number(zeroForOne ? amountIn : amountOut), decimals0)).toFixed(decimals0)
     //const cumulativeVolume0 = Number(zeroVol) + Number(zeroForOne ? amountIn : amountOut)
+    const priceIn0 = zeroForOne ? parseFloat(formatUnits(amountIn, decimals0)) / parseFloat(formatUnits(amountOut, decimals1)) : 1/(parseFloat(formatUnits(amountOut, decimals1))/parseFloat(formatUnits(amountIn, decimals0)))
+    const token0TVL = parseFloat(formatUnits(reserves[0], (decimals0) )) + (parseFloat(formatUnits(reserves[1], (decimals1) )) * Number(priceIn0))
+    let estimatedAPR24H = (1 + ((dexVol024H*SWAP_FEE)/token0TVL)) ** 365
+    let estimatedAPR1H = (1 + ((dexVol01H*SWAP_FEE)/token0TVL)) ** 365
+    let aaveSupplyToken0 = Number(reserveData0['currentLiquidityRate'])
+    let aaveSupplyToken1 = Number(reserveData1['currentLiquidityRate'])
+    const RAY = 10**27
+    const lenderAPR0 = aaveSupplyToken0/RAY
+    const lenderAPR1 = aaveSupplyToken1/RAY
     
     let newDex = new Dex({
       address: event.address,
@@ -381,6 +440,16 @@ export const reservoirSwapHandler: EventHandlerFor<typeof reservoirPair, "Swap">
       volumeUSD1H: dex1HourAgo.length > 0 ? cumulativeVolumeDex - dex1HourAgo[0].cumulativeVolumeUSD : VolUSD,
       volume024H: dexVol024H,
       volume01H: dexVol01H,
+      fees024H: SWAP_FEE*dexVol024H,
+      fees01H: SWAP_FEE*dexVol01H,
+      APR24H: estimatedAPR24H,
+      APR1H: estimatedAPR1H,
+      USDTVL,
+      token0TVL,
+      lenderAPR0,
+      lenderAPR1,
+      token0Managed: parseFloat(formatUnits(token0Managed, decimals0)),
+      token1Managed: parseFloat(formatUnits(token1Managed, decimals1)),
       timestamp: timestamp,
       block: parseFloat(formatUnits(event.blockNumber, 0))
     });
@@ -393,14 +462,30 @@ export const reservoirSwapHandler: EventHandlerFor<typeof reservoirPair, "Swap">
       console.log("oldDex")
       console.log(dex24HoursAgo[0].toJSON())
     }
-    console.log()
     //dex.cumulativeVolumeUSD += VolUSD
     //dex.lastUpdate = parseFloat(formatUnits(event.blockNumber, 0));
     //store.set(`dex:${to}:vol`, cumulativeVolumeDex);
     //await newDex.save();
-    store.set(`dex:${event.address}:vol`, await newDex.save());
+    store.set(`dex:${event.address}`, await newDex.save());
     console.log(`swapFee: ${swapFee}`)
     console.log(`platformFee: ${platformFee}`)
+    console.log(`token0Managed: ${token0Managed}`)
+    console.log(`token1Managed: ${token1Managed}`)
+    console.log(`token0TVL: ${token0TVL}`)
+    console.log(`priceIn0: ${priceIn0}`)
+    
+    console.log((dexVol024H*SWAP_FEE))
+    console.log((dexVol024H*SWAP_FEE)/token0TVL)
+    console.log(`estimatedAPR24H: ${estimatedAPR24H}`)
+    //console.log(reserveData)
+    console.log(token0)
+    console.log(token1)
+    console.log(reserveData0)
+    console.log(reserveData1)
+    console.log(`aaveSupplyToken0: ${aaveSupplyToken0}`)
+    console.log(`supplyApr0: ${aaveSupplyToken0/RAY}`)
+    console.log(`aaveSupplyToken1: ${aaveSupplyToken1}`)
+    console.log(`supplyApr1: ${aaveSupplyToken1/RAY}`)
     //console.log(answer)
     //console.log(`from: ${tx.from}\nto:   ${tx.to}\n(to): ${to}`)
     
