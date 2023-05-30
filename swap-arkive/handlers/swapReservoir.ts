@@ -480,6 +480,8 @@ export const reservoirSwapHandler: EventHandlerFor<typeof reservoirPair, "Swap">
     } else {
       let newPair = new Pair({
         address: event.address,
+        token0Name,
+        token1Name,
         price0: (price)*(10**(18-decimals0)),
         price1: (1/price)/(10**(18-decimals1)),
         priceUSD

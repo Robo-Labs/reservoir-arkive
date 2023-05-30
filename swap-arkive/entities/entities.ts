@@ -240,6 +240,8 @@ export const Dex = createEntity<IDex>("Dex", {
 
 interface IPair {
   address: String;
+  token0Name: String;
+  token1Name: String;
   price0: Number;
   price1: Number;
   priceUSD: Number;
@@ -248,6 +250,14 @@ interface IPair {
 //export const Swap = createEntity<ISwap>("Swap", {
 export const Pair = createEntity<IPair>("Pair", {
   address: {
+    type: String,
+    index: true,
+  },
+  token0Name: {
+    type: String,
+    index: true,
+  },
+  token1Name: {
     type: String,
     index: true,
   },
