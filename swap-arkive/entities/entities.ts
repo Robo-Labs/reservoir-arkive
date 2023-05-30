@@ -238,4 +238,31 @@ export const Dex = createEntity<IDex>("Dex", {
   }
 });
 
-export const Entities = [Swap, Dex]
+interface IPair {
+  address: String;
+  price0: Number;
+  price1: Number;
+  priceUSD: Number;
+}
+
+//export const Swap = createEntity<ISwap>("Swap", {
+export const Pair = createEntity<IPair>("Pair", {
+  address: {
+    type: String,
+    index: true,
+  },
+  price0: {
+    type: Number,
+    index: true,
+  },
+  price1: {
+    type: Number,
+    index: true,
+  },
+  priceUSD: {
+    type: Number,
+    index: true,
+  }
+});
+
+export const Entities = [Swap, Dex, Pair]

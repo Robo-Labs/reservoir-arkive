@@ -5,7 +5,7 @@ import erc20 from "../abis/erc20.ts";
 import chainlink from "../abis/chainlink.ts";
 import aavePool from "../abis/aavePool.ts"
 //import { Swap } from "../entities/swap.ts";
-import { Dex, Swap } from "../entities/entities.ts";
+import { Dex, Swap, Pair } from "../entities/entities.ts";
 import { Address } from "https://deno.land/x/robo_arkiver@v0.3.4/src/deps.ts";
 import labels from "./lib/labels.ts";
 
@@ -343,8 +343,8 @@ export const reservoirSwapHandler: EventHandlerFor<typeof reservoirPair, "Swap">
       routerName: labels[router.toLowerCase()] ? labels[router.toLowerCase()]['name'] : router,
       timestamp: timestamp,
       block: parseFloat(formatUnits(event.blockNumber, 0)),
-      price0: price,
-      price1: 1/price,
+      price0: price*(10**(18-decimals0)),
+      price1: (1/price)/(10**(18-decimals1)),
       priceUSD,
       WETHUSD: Number(ETHUSDPrice),
       cumulativeVolume0: parseFloat(formatUnits(BigInt(cumulativeVolume0), decimals0)).toFixed(decimals0),
@@ -395,7 +395,7 @@ export const reservoirSwapHandler: EventHandlerFor<typeof reservoirPair, "Swap">
       
     // Get most recent dex cumulative volume  or return 0
     const oldDex = await store.retrieve(
-      `dex:${event.address}:vol`,
+      `dex:${event.address}`,
       async () => {
         const latest = await Dex.find({
           address: to,
@@ -453,41 +453,37 @@ export const reservoirSwapHandler: EventHandlerFor<typeof reservoirPair, "Swap">
       timestamp: timestamp,
       block: parseFloat(formatUnits(event.blockNumber, 0))
     });
-    if(Number(dex24HoursAgo.length > 0 ? cumulativeVolumeDex - dex24HoursAgo[0].cumulativeVolumeUSD : VolUSD) < Number(0)){
-      console.log(`cumulativeVolumeDex: ${cumulativeVolumeDex}`)
-      console.log(`dexVol: ${dexVol}`)
-      console.log(`VolUSD: ${VolUSD}`)
-      console.log("newDex")
-      console.log(newDex.toJSON())
-      console.log("oldDex")
-      console.log(dex24HoursAgo[0].toJSON())
-    }
-    //dex.cumulativeVolumeUSD += VolUSD
-    //dex.lastUpdate = parseFloat(formatUnits(event.blockNumber, 0));
-    //store.set(`dex:${to}:vol`, cumulativeVolumeDex);
-    //await newDex.save();
     store.set(`dex:${event.address}`, await newDex.save());
-    console.log(`swapFee: ${swapFee}`)
-    console.log(`platformFee: ${platformFee}`)
-    console.log(`token0Managed: ${token0Managed}`)
-    console.log(`token1Managed: ${token1Managed}`)
-    console.log(`token0TVL: ${token0TVL}`)
-    console.log(`priceIn0: ${priceIn0}`)
-    
-    console.log((dexVol024H*SWAP_FEE))
-    console.log((dexVol024H*SWAP_FEE)/token0TVL)
-    console.log(`estimatedAPR24H: ${estimatedAPR24H}`)
-    //console.log(reserveData)
-    console.log(token0)
-    console.log(token1)
-    console.log(reserveData0)
-    console.log(reserveData1)
-    console.log(`aaveSupplyToken0: ${aaveSupplyToken0}`)
-    console.log(`supplyApr0: ${aaveSupplyToken0/RAY}`)
-    console.log(`aaveSupplyToken1: ${aaveSupplyToken1}`)
-    console.log(`supplyApr1: ${aaveSupplyToken1/RAY}`)
-    //console.log(answer)
-    //console.log(`from: ${tx.from}\nto:   ${tx.to}\n(to): ${to}`)
-    
-    //parseFloat(formatUnits(BigInt(Math.floor(VolUSD)), 8))
-  };
+
+    const oldPair = await store.retrieve(
+      `pair:${event.address}`,
+      async () => {
+        const latest = await Pair.find({
+          address: event.address,
+        })
+          .sort({ timestamp: -1 }) // Sort by decending timestamp
+          .limit(1) // Get the top 1 result
+          .exec();
+        
+        if(latest[0]){
+          return latest[0]
+        } else {
+          return undefined // Okay well there must not be any entries in the db for this Dex/Router
+        }
+      }
+    )
+    if(oldPair !== undefined){
+      oldPair.price0 = price
+      oldPair.price1 = 1/price
+      oldPair.priceUSD = priceUSD
+      await oldPair.save()
+    } else {
+      let newPair = new Pair({
+        address: event.address,
+        price0: (price)*(10**(18-decimals0)),
+        price1: (1/price)/(10**(18-decimals1)),
+        priceUSD
+    });
+    await newPair.save()
+    }
+  }
