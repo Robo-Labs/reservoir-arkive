@@ -3,7 +3,7 @@ import { createEntity } from "../deps.ts";
 import { Types } from 'npm:mongoose'
 
 interface ISnapshot {
-	res: '1h' | '1d'
+	res: '1h' | '1d' | '10m'
 	pair: any,
 	from: number,
 	to: number,

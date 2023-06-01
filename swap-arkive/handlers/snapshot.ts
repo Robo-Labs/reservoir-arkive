@@ -2,14 +2,16 @@ import {
 	type BlockHandler,
 } from "https://deno.land/x/robo_arkiver@v0.3.6/mod.ts";
 import { Snapshot } from "../entities/snapshot.ts";
-import { Pair } from "../entities/pair.ts";
+import { IPair, Pair } from "../entities/pair.ts";
 import { ISwap, Swap } from "../entities/swap.ts";
-import { Context, nearestDay, SECONDS_PER_YEAR } from "./util.ts";
+import { ISnapshotAave, SnapshotAave } from "../entities/snapshotAave.ts";
+import { Context, nearestDay, nearestHour, SECONDS_PER_YEAR } from "./util.ts";
+import { getToken } from "./tokens.ts";
 
 
 const createSnapshot = async (ctx: Context, from: number, to: number, period: string) => {
 	const pairs = await Pair.find({})
-	return await Promise.all(pairs.map(async (pair: any) => {
+	return await Promise.all(pairs.map(async (pair: IPair) => {
 		// Get previous snapshot
 		const snapshot = await Snapshot.findOne({ pair, res: period, from }) || new Snapshot({
 			res: period,
@@ -38,8 +40,15 @@ const createSnapshot = async (ctx: Context, from: number, to: number, period: st
 		const swapApy = (returns / duration) * SECONDS_PER_YEAR
 
 		// *** TODO ***
-		const volumeUSD = 0 // TODO - Use the Token entities to get the price of the tokens and calculate the volumeUSD
-		const underlyingApy = 0 // TODO - Get the apy from AAVE. Do a 10minute snapshot of aave and use that. 
+		const now = Number(ctx.block.timestamp)
+		const nearHour = nearestHour(now)
+		let aaveSnapshot0 = await SnapshotAave.findOne({ token: pair.token0, res: '1h', from: nearHour })
+		let aaveSnapshot1 = await SnapshotAave.findOne({ token: pair.token1, res: '1h', from: nearHour })
+		let underlyingApy = 0
+		if(aaveSnapshot0 && aaveSnapshot1)
+			underlyingApy = (aaveSnapshot0.apy+aaveSnapshot1.apy)/2 // TODO - Get the managed reserves and use that instead of average.
+		let token0 = await getToken(ctx.client, pair.token0)
+		const volumeUSD = token0.priceUSD * volume0 // TODO - Use the Token entities to get the price of the tokens and calculate the volumeUSD
 
 		// Update the snapshot
 		snapshot.reserve0 = pair.reserve0

@@ -32,6 +32,7 @@ export const getPair = async (client: PublicClient, address: Address) => {
 		token1Symbol: token1.symbol,
 		reserve0: toNumber(reserves[0], token0.decimals),
 		reserve1: toNumber(reserves[1], token1.decimals),
+		tvlUSD: (toNumber(reserves[0], token0.decimals)*token0.priceUSD) + (toNumber(reserves[1], token1.decimals) * token0.priceUSD)
 	})
 
 	await Promise.all([

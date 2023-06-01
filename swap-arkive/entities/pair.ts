@@ -1,6 +1,6 @@
 import { createEntity } from "https://deno.land/x/robo_arkiver/mod.ts";
 
-interface IPair {
+export interface IPair {
 	address: string,
 	swapFee: number,
 	token0: string,
