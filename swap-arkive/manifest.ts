@@ -1,20 +1,20 @@
-import { Manifest } from 'https://deno.land/x/robo_arkiver/mod.ts'
+import { Manifest } from "https://deno.land/x/robo_arkiver@v0.4.11/mod.ts"
 import { ReservoirPairAbi } from './abis/reservoirPair.ts'
 import { Pair } from './entities/pair.ts'
 import { Swap } from './entities/swap.ts'
 import { Token } from './entities/token.ts'
-import { Snapshot } from './entities/snapshot.ts'
-import { SnapshotAave } from './entities/snapshotAave.ts'
-import { SnapshotHandler } from './handlers/snapshot.ts'
-import { SnapshotAaveHandler } from './handlers/snapshotAave.ts'
 import { TokenHandler } from './handlers/tokens.ts'
 import { SwapHandler, SyncHandler } from './handlers/events.ts'
+import { AaveSnapshotHandler } from './handlers/aaveSnapshot.ts'
+import { AaveSnapshot } from './entities/aaveSnapshot.ts'
+import { SnapshotHandler } from './handlers/pairSnapshot.ts'
+import { PairSnapshot } from './entities/pairSnapshot.ts'
 
 const manifest = new Manifest('reservoir')
 const startBlockHeight = 22206710n
 const avalanche = manifest
-	.addEntities([Swap, Pair, Token, Snapshot, SnapshotAave])
-	.chain('avalanche', { blockRange: 500n })
+	.addEntities([Swap, Pair, Token, PairSnapshot, AaveSnapshot])
+	.chain('avalancheFuji', { blockRange: 500n })
 
 avalanche
 	.contract(ReservoirPairAbi)
@@ -32,6 +32,6 @@ avalanche
 
 // Aave Updates
 avalanche
-	.addBlockHandler({ blockInterval: 20, startBlockHeight: startBlockHeight, handler: SnapshotAaveHandler })
+	.addBlockHandler({ blockInterval: 20, startBlockHeight: startBlockHeight, handler: AaveSnapshotHandler })
 
 export default manifest.build()

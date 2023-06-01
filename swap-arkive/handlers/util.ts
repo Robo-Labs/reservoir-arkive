@@ -1,11 +1,11 @@
 import {
 	type Store,
-} from "https://deno.land/x/robo_arkiver@v0.3.6/mod.ts";
-import { SafeBlock } from "https://deno.land/x/robo_arkiver@v0.3.6/src/arkiver/types.ts";
+} from "https://deno.land/x/robo_arkiver@v0.4.11/mod.ts";
+import { type Block } from "npm:viem";
 import { type PublicClient } from "npm:viem";
 
 export type Context = {
-	block: SafeBlock;
+	block: Block;
 	client: PublicClient;
 	store: Store;
 }
@@ -25,4 +25,8 @@ export const nearestHour = (now: number) => {
 
 export const nearestDay = (now: number) => {
 	return Math.floor(now / DAY) * DAY
+}
+
+export const nearestPeriod = (now: number, period: number) => {
+	return Math.floor(now / period) * period
 }

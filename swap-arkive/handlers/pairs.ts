@@ -1,6 +1,5 @@
 import { type PublicClient, type Address } from "npm:viem";
 import { ReservoirPairAbi } from "../abis/reservoirPair.ts";
-import erc20 from "../abis/erc20.ts";
 import { Pair } from "../entities/pair.ts";
 import { toNumber } from "./util.ts";
 import { getToken } from "./tokens.ts";

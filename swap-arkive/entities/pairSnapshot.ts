@@ -2,7 +2,7 @@
 import { createEntity } from "../deps.ts";
 import { Types } from 'npm:mongoose'
 
-interface ISnapshot {
+interface IPairSnapshot {
 	res: '1h' | '1d' | '10m'
 	pair: any,
 	from: number,
@@ -10,14 +10,17 @@ interface ISnapshot {
 	totalSupply: number,
 	reserve0: number,
 	reserve1: number,
+	managed0: number,
+	managed1: number,
 	fees0: number,
 	fees1: number,
-	swapApy: number,
-	underlyingApy: number,
 	volumeUSD: number,
+	swapApy: number,
+	managedApy: number,
+	managedRewardApy: number,
 }
 
-export const Snapshot = createEntity<ISnapshot>("Snapshot", {
+export const PairSnapshot = createEntity<IPairSnapshot>("PairSnapshot", {
 	res: String,
 	pair: { type: Types.ObjectId, ref: 'Pair'},
 	from: { type: Number, index: true },
@@ -25,9 +28,12 @@ export const Snapshot = createEntity<ISnapshot>("Snapshot", {
 	totalSupply: Number,
 	reserve0: Number,
 	reserve1: Number,
+	managed0: Number,
+	managed1: Number,
 	fees0: Number,
 	fees1: Number,
-	swapApy: Number,
-	underlyingApy: Number,
 	volumeUSD: Number,
+	swapApy: Number,
+	managedApy: Number,
+	managedRewardApy: Number,
 })

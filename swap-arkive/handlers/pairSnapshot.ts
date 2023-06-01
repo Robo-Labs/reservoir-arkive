@@ -1,19 +1,19 @@
 import {
 	type BlockHandler,
-} from "https://deno.land/x/robo_arkiver@v0.3.6/mod.ts";
-import { Snapshot } from "../entities/snapshot.ts";
+} from "https://deno.land/x/robo_arkiver@v0.4.11/mod.ts";
 import { IPair, Pair } from "../entities/pair.ts";
 import { ISwap, Swap } from "../entities/swap.ts";
-import { ISnapshotAave, SnapshotAave } from "../entities/snapshotAave.ts";
-import { Context, nearestDay, nearestHour, SECONDS_PER_YEAR } from "./util.ts";
+import { Context, nearestDay, SECONDS_PER_YEAR } from "./util.ts";
 import { getToken } from "./tokens.ts";
+import { Address } from "npm:viem";
+import { PairSnapshot } from "../entities/pairSnapshot.ts";
 
 
-const createSnapshot = async (ctx: Context, from: number, to: number, period: string) => {
+const createOrUpdateSnapshot = async (ctx: Context, from: number, to: number, period: string) => {
 	const pairs = await Pair.find({})
 	return await Promise.all(pairs.map(async (pair: IPair) => {
 		// Get previous snapshot
-		const snapshot = await Snapshot.findOne({ pair, res: period, from }) || new Snapshot({
+		const snapshot = await PairSnapshot.findOne({ pair, res: period, from }) || new PairSnapshot({
 			res: period,
 			pair,
 			from,
@@ -39,26 +39,33 @@ const createSnapshot = async (ctx: Context, from: number, to: number, period: st
 		const returns = fees0 / pair.reserve0
 		const swapApy = (returns / duration) * SECONDS_PER_YEAR
 
-		// *** TODO ***
-		const now = Number(ctx.block.timestamp)
-		const nearHour = nearestHour(now)
-		let aaveSnapshot0 = await SnapshotAave.findOne({ token: pair.token0, res: '1h', from: nearHour })
-		let aaveSnapshot1 = await SnapshotAave.findOne({ token: pair.token1, res: '1h', from: nearHour })
-		let underlyingApy = 0
-		if(aaveSnapshot0 && aaveSnapshot1)
-			underlyingApy = (aaveSnapshot0.apy+aaveSnapshot1.apy)/2 // TODO - Get the managed reserves and use that instead of average.
-		let token0 = await getToken(ctx.client, pair.token0)
-		const volumeUSD = token0.priceUSD * volume0 // TODO - Use the Token entities to get the price of the tokens and calculate the volumeUSD
+		// TODO - adjust when migrating to mainnet
+		const aaveSnapshot0 = { liquidityRate: 0.02 } // (await AaveSnapshot.findOne({ token: pair.token0 }).sort({ timestamp: -1 }))!
+		const aaveSnapshot1 = { liquidityRate: 0.02 } //(await AaveSnapshot.findOne({ token: pair.token1 }).sort({ timestamp: -1 }))!
+
+		// hard-coding 30% managed -> TODO get the true managed amount
+		const managed0 = Math.floor(pair.reserve0 * 0.3)
+		const managed1 = Math.floor(pair.reserve1 * 0.3)
+		const managedApy = 
+			aaveSnapshot0.liquidityRate * (managed0 / pair.reserve0) + 
+			aaveSnapshot1.liquidityRate * (managed1 / pair.reserve1)
+
+		const token0 = await getToken(ctx.client, pair.token0 as Address)
+		const volumeUSD = token0.priceUSD * volume0
 
 		// Update the snapshot
+		snapshot.totalSupply = 0 // TODO -> Get total supply of the LP token by monitoring mints/burns
 		snapshot.reserve0 = pair.reserve0
 		snapshot.reserve1 = pair.reserve1
+		snapshot.managed0 = managed0
+		snapshot.managed1 = managed1
 		snapshot.fees0 = fees0
 		snapshot.fees1 = fees1
 		snapshot.swapApy = swapApy
-		snapshot.underlyingApy = underlyingApy
 		snapshot.volumeUSD = volumeUSD
-		
+		snapshot.managedApy = managedApy
+		snapshot.managedRewardApy = 0 // TODO -> AAVE emissions
+		snapshot.to = to
 		return snapshot
 
 	}))
@@ -70,11 +77,10 @@ const dailySnapshot = async (ctx: Context): Promise<void> => {
 	const nowDay = nearestDay(now)
 
 	// Update the snapshot everytime, incase their have been trades
-	const snapshots = await createSnapshot(ctx, nowDay, now, '1d')
-	await Snapshot.bulkSave(snapshots)
+	const snapshots = await createOrUpdateSnapshot(ctx, nowDay, now, '1d')
+	await PairSnapshot.bulkSave(snapshots)
 }
 	
 export const SnapshotHandler: BlockHandler = async (ctx: Context): Promise<void> => {
-	console.log('SnapshotHandler', ctx.block.number, Number(ctx.block.timestamp))
 	await dailySnapshot(ctx)
 };
