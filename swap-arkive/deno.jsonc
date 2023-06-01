@@ -1,5 +1,7 @@
 {
   "tasks": {
-    "dev": "deno run --watch main.ts"
+	"dev": "arkiver start . -c \"mongodb://root:example@localhost:27017\""
   }
 }
+
+
