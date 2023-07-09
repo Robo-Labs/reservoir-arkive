@@ -150,6 +150,11 @@ export default [
     "Network": "Avalanche"
   },
   {
+    "Pair": "WAVAX / USD",
+    "Address": "0x0A77230d17318075983913bC2145DB16C7366156",
+    "Network": "Avalanche"
+  },
+  {
     "Pair": "AXS / USD",
     "Address": "0x155835C5755205597d62703a5A0b37e57a26Ee5C",
     "Network": "Avalanche"
@@ -413,5 +418,10 @@ export default [
     "Pair": "ZRX / USD",
     "Address": "0xC07CDf938aa113741fB639bf39699926123fB58B",
     "Network": "Avalanche"
-  }
- ] as const
+  },
+  {
+    "Pair": "SAVAX / USD",
+    "Address": "0x2854Ca10a54800e15A2a25cFa52567166434Ff0a",
+    "Network": "Avalanche"
+  }  
+] as const

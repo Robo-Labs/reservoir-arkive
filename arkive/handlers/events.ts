@@ -30,8 +30,9 @@ export const SwapHandler: EventHandlerFor<typeof ReservoirPairAbi, "Swap"> = asy
 export const SyncHandler: EventHandlerFor<typeof ReservoirPairAbi, "Sync"> = async (
 	{ event, client, store },
 ) => {
+	const { reserve0, reserve1 } = event.args;
 	const pair = await store.retrieve(`pair:${event.address}`, async () => await getPair(client, event.address))
-	pair.reserve0 = toNumber(event.args.reserve0, pair.token0Decimals)
-	pair.reserve1 = toNumber(event.args.reserve1, pair.token1Decimals)
+	pair.reserve0 = toNumber(reserve0, pair.token0Decimals)
+	pair.reserve1 = toNumber(reserve1, pair.token1Decimals)
 	await pair.save()
 }

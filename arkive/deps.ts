@@ -3,5 +3,5 @@ export {
   createEntity,
   type EventHandlerFor,
   Manifest,
-} from "https://deno.land/x/robo_arkiver/mod.ts";
+} from "https://deno.land/x/robo_arkiver@v0.4.15/mod.ts";
 //export uni from "npm:@thanpolas/univ3prices";

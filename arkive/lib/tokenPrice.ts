@@ -22,10 +22,10 @@ export class TokenPrice {
 
 	static async getOraclePriceUSD(client: PublicClient, tokenAddress: Address, block: number){
 		const token = await getToken(client, tokenAddress)
-		const CLFeedName = `${token.symbol} / USD`
-		const feed = feedMap.find(o => o.Pair === CLFeedName && o.Network == "Fuji")
+		const CLFeedName = `${token.symbol} / USD`.toUpperCase()
+		const feed = feedMap.find(o => o.Pair.toUpperCase() === CLFeedName && o.Network == "Avalanche")
 		if(feed !== undefined){
-			let latestAnswer = await client.readContract({ abi: oracle, address: feed.Address, functionName: "latestAnswer", blockNumber: block })
+			let latestAnswer = await client.readContract({ abi: oracle, address: feed.Address, functionName: "latestAnswer", blockNumber: BigInt(block) })
 			return toNumber(latestAnswer, 8)
 		} else {
 			return 0

@@ -29,8 +29,8 @@ export const TokenHandler = async (ctx: Context): Promise<void> => {
 	const network = ctx.client.chain!.name
 	const tokens = await Token.find( { network })
 	const records = await Promise.all(tokens.map(async (token: any) => {
-		const key = `price:${token}:${ctx.block.number!}`
-		const price = await ctx.store.retrieve(key, () => TokenPrice.get(ctx.client, ctx.block.number!, token.address as Address))
+		const key = `price:${token.address}:${ctx.block.number!}`
+		const price = await ctx.store.retrieve(key, async () => await TokenPrice.get(ctx.client, ctx.block.number!, token.address as Address))
 		token.priceUSD = price
 		return token
 	}))

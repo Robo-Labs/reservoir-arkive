@@ -1,21 +1,26 @@
 import {
 	type BlockHandler,
-} from "https://deno.land/x/robo_arkiver@v0.4.11/mod.ts";
+} from "https://deno.land/x/robo_arkiver@v0.4.15/mod.ts";
 import { IPair, Pair } from "../entities/pair.ts";
 import { ISwap, Swap } from "../entities/swap.ts";
-import { Context, nearestDay, SECONDS_PER_YEAR } from "./util.ts";
+import { Context, nearestDay, SECONDS_PER_YEAR, toNumber } from "./util.ts";
 import { getToken } from "./tokens.ts";
 import { Address } from "npm:viem";
 import { PairSnapshot } from "../entities/pairSnapshot.ts";
+import { AaveSnapshot } from "../entities/aaveSnapshot.ts";
+import { AaveAssetManagerAbi } from "../abis/aaveAssetManager.ts";
 
 const ONE_DAY = 60 * 60 * 24
 
+const ASSET_MANAGER = '0xbe8A6DDDA2D2AA6BC88972801Be1119BD228f55e'
+
 const updateSnapshot = async (ctx: Context, now: number, period: string) => {
 	const pairs = await Pair.find({})
-	return await Promise.all(pairs.map(async (pair: IPair) => {
+	return await Promise.all(pairs.map(async (pair) => {
 		// Get previous snapshot
 		const from = now - ONE_DAY
 		const swaps = await Swap.find({ pair, timestamp: { $gte: from } })
+		const { client } = ctx
 
 		// Calculate the stats for the snapshot
 		const volume0 = swaps.reduce((acc: number, swap: ISwap) => acc += swap.amount0In + swap.amount0Out, 0)
@@ -26,18 +31,31 @@ const updateSnapshot = async (ctx: Context, now: number, period: string) => {
 		const returns = fees0 / pair.reserve0
 		const swapApy = (returns / duration) * SECONDS_PER_YEAR
 
-		// TODO - adjust when migrating to mainnet
-		const aaveSnapshot0 = { liquidityRate: 0.02 } // (await AaveSnapshot.findOne({ token: pair.token0 }).sort({ timestamp: -1 }))!
-		const aaveSnapshot1 = { liquidityRate: 0.02 } //(await AaveSnapshot.findOne({ token: pair.token1 }).sort({ timestamp: -1 }))!
+		const [ aaveSnapshot0, aaveSnapshot1 ] = await Promise.all([
+			AaveSnapshot.findOne({ token: pair.token0 }).sort({ timestamp: -1 }),
+			AaveSnapshot.findOne({ token: pair.token1 }).sort({ timestamp: -1 })
+		])
+		
+		const liquidityRate0 = aaveSnapshot0?.liquidityRate || 0
+		const liquidityRate1 = aaveSnapshot1?.liquidityRate || 0
+
+		const managed = await client.multicall({
+			contracts: [
+				{ abi: AaveAssetManagerAbi, address: ASSET_MANAGER, functionName: 'getBalance', args: [pair.address as Address, pair.token0 as Address] },
+				{ abi: AaveAssetManagerAbi, address: ASSET_MANAGER, functionName: 'getBalance', args: [pair.address as Address, pair.token1 as Address] },
+			],
+			blockNumber: ctx.block.number!
+		})
 
 		// hard-coding 30% managed -> TODO get the true managed amount
-		const managed0 = Math.floor(pair.reserve0 * 0.3)
-		const managed1 = Math.floor(pair.reserve1 * 0.3)
+		const managed0 = toNumber(managed[0].result!, pair.token0Decimals)
+		const managed1 = toNumber(managed[1].result!, pair.token1Decimals)
 		const managedApy =
-			aaveSnapshot0.liquidityRate * (managed0 / pair.reserve0) + 
-			aaveSnapshot1.liquidityRate * (managed1 / pair.reserve1)
+			liquidityRate0 * (managed0 / pair.reserve0) + 
+			liquidityRate1 * (managed1 / pair.reserve1)
 
 		const token0 = await getToken(ctx.client, pair.token0 as Address)
+		const token1 = await getToken(ctx.client, pair.token0 as Address)
 		const volumeUSD = token0.priceUSD * volume0
 		
 		const snapshot = {
@@ -58,6 +76,10 @@ const updateSnapshot = async (ctx: Context, now: number, period: string) => {
 			managedRewardApy: 0 // TODO -> AAVE emissions
 		}
 		await PairSnapshot.findOneAndUpdate({ pair }, snapshot, { upsert: true })
+
+		// update pair.tvlUSD
+		pair.tvlUSD = pair.reserve0 * token0.priceUSD + pair.reserve1 * token1.priceUSD
+		await pair.save()
 	}))
 }
 

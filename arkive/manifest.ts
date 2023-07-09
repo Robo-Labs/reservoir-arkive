@@ -1,4 +1,4 @@
-import { Manifest } from "https://deno.land/x/robo_arkiver@v0.4.11/mod.ts"
+import { Manifest } from "https://deno.land/x/robo_arkiver@v0.4.15/mod.ts"
 import { ReservoirPairAbi } from './abis/reservoirPair.ts'
 import { Pair } from './entities/pair.ts'
 import { Swap } from './entities/swap.ts'
@@ -11,19 +11,17 @@ import { SnapshotHandler } from './handlers/pairSnapshot.ts'
 import { PairSnapshot } from './entities/pairSnapshot.ts'
 
 const manifest = new Manifest('reservoir-mainnet')
-const startBlockHeight = 31569814n
 const avalanche = manifest
 	.addEntities([Swap, Pair, Token, PairSnapshot, AaveSnapshot])
-	.chain('avalanche', { blockRange: 2000n })
+	.addChain('avalanche', { blockRange: 1000n })
 
 avalanche
-	.contract(ReservoirPairAbi)
+	.addContract(ReservoirPairAbi)
 	.addSources({
+		'0x1e93509A80E936BfF8e27C129a9B99728A51D0cC': 31616108n,
 		'0x146D00567Cef404c1c0aAF1dfD2abEa9F260B8C7': 31569814n,
-		'0x1e93509A80E936BfF8e27C129a9B99728A51D0cC': 31616100n,
 	})
-	.addEventHandlers({ 'Swap': SwapHandler })
-	.addEventHandlers({ 'Sync': SyncHandler })
+	.addEventHandlers({ 'Swap': SwapHandler, 'Sync': SyncHandler })
 
 // Snapshots
 avalanche

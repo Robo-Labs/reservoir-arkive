@@ -1,6 +1,6 @@
 import {
 	type BlockHandler,
-} from "https://deno.land/x/robo_arkiver@v0.4.11/mod.ts";
+} from "https://deno.land/x/robo_arkiver@v0.4.15/mod.ts";
 import { Context, nearestHour, nearestPeriod, toNumber } from "./util.ts";
 import { AaveSnapshot } from "../entities/aaveSnapshot.ts";
 import { Aave } from "./aavePools.ts";
@@ -10,6 +10,7 @@ const ONE_MINUTE = 60
 const PERIOD = 10 * ONE_MINUTE;
 	
 export const AaveSnapshotHandler: BlockHandler = async (ctx: Context): Promise<void> => {
+	console.log('aave snap!')
 	const now = Number(ctx.block.timestamp)
 	const nowPeriod = nearestPeriod(now, PERIOD)
 	const last = await AaveSnapshot.findOne({}).sort({ timestamp: -1 })
