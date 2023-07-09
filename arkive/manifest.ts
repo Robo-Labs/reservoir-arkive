@@ -10,28 +10,31 @@ import { AaveSnapshot } from './entities/aaveSnapshot.ts'
 import { SnapshotHandler } from './handlers/pairSnapshot.ts'
 import { PairSnapshot } from './entities/pairSnapshot.ts'
 
-const manifest = new Manifest('reservoir')
-const startBlockHeight = 22206710n
+const manifest = new Manifest('reservoir-mainnet')
+const startBlockHeight = 31569814n
 const avalanche = manifest
 	.addEntities([Swap, Pair, Token, PairSnapshot, AaveSnapshot])
-	.chain('avalancheFuji', { blockRange: 500n })
+	.chain('avalanche', { blockRange: 2000n })
 
 avalanche
 	.contract(ReservoirPairAbi)
-	.addSources({'0xe9cEFa5eeB3d6e8C8AB9e65F164Ac6bac1eeFC9D': startBlockHeight})
+	.addSources({
+		'0x146D00567Cef404c1c0aAF1dfD2abEa9F260B8C7': 31569814n,
+		'0x1e93509A80E936BfF8e27C129a9B99728A51D0cC': 31616100n,
+	})
 	.addEventHandlers({ 'Swap': SwapHandler })
 	.addEventHandlers({ 'Sync': SyncHandler })
 
 // Snapshots
 avalanche
-	.addBlockHandler({ blockInterval: 100, startBlockHeight: startBlockHeight, handler: SnapshotHandler })
+	.addBlockHandler({ blockInterval: 20, startBlockHeight: 'live', handler: SnapshotHandler })
 
 // Price Updates
 avalanche
-	.addBlockHandler({ blockInterval: 20, startBlockHeight: startBlockHeight, handler: TokenHandler })
+	.addBlockHandler({ blockInterval: 20, startBlockHeight: 'live', handler: TokenHandler })
 
 // Aave Updates
 avalanche
-	.addBlockHandler({ blockInterval: 20, startBlockHeight: startBlockHeight, handler: AaveSnapshotHandler })
+	.addBlockHandler({ blockInterval: 20, startBlockHeight: 'live', handler: AaveSnapshotHandler })
 
 export default manifest.build()
