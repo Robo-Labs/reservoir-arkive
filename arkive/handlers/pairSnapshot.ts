@@ -30,10 +30,9 @@ const updateSnapshot = async (ctx: Context, now: number, period: string) => {
 		const duration = now - from
 		const returns = fees0 / pair.reserve0
 		const swapApy = (returns / duration) * SECONDS_PER_YEAR
-
 		const [ aaveSnapshot0, aaveSnapshot1 ] = await Promise.all([
-			AaveSnapshot.findOne({ token: pair.token0 }).sort({ timestamp: -1 }),
-			AaveSnapshot.findOne({ token: pair.token1 }).sort({ timestamp: -1 })
+			AaveSnapshot.findOne({ underlyingAddress: pair.token0 }).sort({ timestamp: -1 }),
+			AaveSnapshot.findOne({ underlyingAddress: pair.token1 }).sort({ timestamp: -1 })
 		])
 		
 		const liquidityRate0 = aaveSnapshot0?.liquidityRate || 0
@@ -66,8 +65,8 @@ const updateSnapshot = async (ctx: Context, now: number, period: string) => {
 			totalSupply: 0,
 			reserve0: pair.reserve0,
 			reserve1: pair.reserve1,
-			managed0: managed0,
-			managed1: managed1,
+			managed0,
+			managed1,
 			fees0: fees0,
 			fees1: fees1,
 			volumeUSD: volumeUSD,

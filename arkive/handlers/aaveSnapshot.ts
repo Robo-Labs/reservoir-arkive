@@ -46,6 +46,7 @@ export const AaveSnapshotHandler: BlockHandler = async (ctx: Context): Promise<v
 				timestamp: nowPeriod,
 				pool: pool,
 				underlying: pool.underlying,
+				underlyingAddress: pool.underlying.address,
 				liquidityRate: toNumber(liquidityRate, 27),
 				variableBorrowRate: toNumber(variableBorrowRate, 27),
 				totalSupply: toNumber(totalAToken, pool.underlying.decimals),

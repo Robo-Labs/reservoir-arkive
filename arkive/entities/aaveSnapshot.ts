@@ -4,6 +4,8 @@ import { Types } from 'npm:mongoose'
 
 interface IAaveSnapshot {
 	pool: any,
+	underlying: any,
+	underlyingAddress: string,
 	timestamp: number,
 	liquidityRate: number,
 	variableBorrowRate: number,
@@ -13,6 +15,8 @@ interface IAaveSnapshot {
 
 export const AaveSnapshot = createEntity<IAaveSnapshot>("AaveSnapshot", {
 	pool: { type: Types.ObjectId, ref: 'Pool'},
+	underlying: { type: Types.ObjectId, ref: 'Token'},
+	underlyingAddress: String,
 	timestamp: { type: Number, index: true },
 	liquidityRate: Number,
 	variableBorrowRate: Number,
