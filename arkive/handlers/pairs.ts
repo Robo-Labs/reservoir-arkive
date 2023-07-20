@@ -4,6 +4,11 @@ import { Pair } from "../entities/pair.ts";
 import { toNumber } from "./util.ts";
 import { getToken } from "./tokens.ts";
 
+const CURVE_IDS: Record<string, number>= {
+  '0x1e93509a80e936bff8e27c129a9b99728a51d0cc': 0,
+  '0x146d00567cef404c1c0aaf1dfd2abea9f260b8c7': 1,
+}
+
 export const getPair = async (client: PublicClient, address: Address) => {
 	const record = await Pair.findOne({ address })
 	if (record)
@@ -22,6 +27,7 @@ export const getPair = async (client: PublicClient, address: Address) => {
 	])
 	const rec = new Pair({ 
 		address,
+		curveId: CURVE_IDS[address.toLowerCase()] || 99,
 		swapFee: toNumber(swapFee, 6),
 		token0: token0Address,
 		token1: token1Address,

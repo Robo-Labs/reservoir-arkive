@@ -15,7 +15,7 @@ interface IPairSnapshot {
 	fees0: number,
 	fees1: number,
 	volumeUSD: number,
-	swapApy: number,
+	swapApr: number,
 	managedApy: number,
 	managedRewardApy: number,
 }
@@ -33,7 +33,7 @@ export const PairSnapshot = createEntity<IPairSnapshot>("PairSnapshot", {
 	fees0: Number,
 	fees1: Number,
 	volumeUSD: Number,
-	swapApy: Number,
+	swapApr: Number,
 	managedApy: Number,
 	managedRewardApy: Number,
 })

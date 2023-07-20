@@ -1,6 +1,6 @@
 import {
 	type BlockHandler,
-} from "https://deno.land/x/robo_arkiver@v0.4.15/mod.ts";
+} from "https://deno.land/x/robo_arkiver@v0.4.18/mod.ts";
 import { IPair, Pair } from "../entities/pair.ts";
 import { ISwap, Swap } from "../entities/swap.ts";
 import { Context, nearestDay, SECONDS_PER_YEAR, toNumber } from "./util.ts";
@@ -29,7 +29,7 @@ const updateSnapshot = async (ctx: Context, now: number, period: string) => {
 		const fees1 = volume1 * pair.swapFee
 		const duration = now - from
 		const returns = fees0 / pair.reserve0
-		const swapApy = (returns / duration) * SECONDS_PER_YEAR
+		const swapApr = (returns / duration) * SECONDS_PER_YEAR
 		const [ aaveSnapshot0, aaveSnapshot1 ] = await Promise.all([
 			AaveSnapshot.findOne({ underlyingAddress: pair.token0 }).sort({ timestamp: -1 }),
 			AaveSnapshot.findOne({ underlyingAddress: pair.token1 }).sort({ timestamp: -1 })
@@ -70,7 +70,7 @@ const updateSnapshot = async (ctx: Context, now: number, period: string) => {
 			fees0: fees0,
 			fees1: fees1,
 			volumeUSD: volumeUSD,
-			swapApy: swapApy,
+			swapApr: swapApr,
 			managedApy: managedApy,
 			managedRewardApy: 0 // TODO -> AAVE emissions
 		}

@@ -4,7 +4,7 @@ import { Pair } from "../entities/pair.ts";
 import { toNumber } from "../handlers/util.ts";
 import { type PublicClient, type Address } from "npm:viem";
 import oracle from "../abis/chainlink.ts"
-import feedMap from "../lib/feedMap.ts"
+import { FEED_MAP } from "../lib/feedMap.ts"
 
 export class TokenPrice {
 	static async get(client: PublicClient, block: bigint, token: Address) {
@@ -23,10 +23,11 @@ export class TokenPrice {
 	static async getOraclePriceUSD(client: PublicClient, tokenAddress: Address, block: number){
 		const token = await getToken(client, tokenAddress)
 		const CLFeedName = `${token.symbol} / USD`.toUpperCase()
-		const feed = feedMap.find(o => o.Pair.toUpperCase() === CLFeedName && o.Network == "Avalanche")
+		const feed = FEED_MAP.find(o => o.pair.toUpperCase() === CLFeedName && o.network == "Avalanche")
 		if(feed !== undefined){
-			let latestAnswer = await client.readContract({ abi: oracle, address: feed.Address, functionName: "latestAnswer", blockNumber: BigInt(block) })
-			return toNumber(latestAnswer, 8)
+			const decimals = feed.decimals || 8
+			let latestAnswer = await client.readContract({ abi: oracle, address: feed.address, functionName: "latestAnswer", blockNumber: BigInt(block) })
+			return toNumber(latestAnswer, decimals)
 		} else {
 			return 0
 		}

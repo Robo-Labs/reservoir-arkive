@@ -2,6 +2,7 @@ import { createEntity } from "https://deno.land/x/robo_arkiver/mod.ts";
 
 export interface IPair {
 	address: string,
+	curveId: number,
 	swapFee: number,
 	token0: string,
 	token1: string,
@@ -16,6 +17,7 @@ export interface IPair {
 
 export const Pair = createEntity<IPair>("Pair", {
 	address: String,
+	curveId: Number,
 	swapFee: Number,
 	token0: String,
 	token1: String,
