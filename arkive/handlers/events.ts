@@ -9,7 +9,7 @@ export const SwapHandler: EventHandlerFor<typeof ReservoirPairAbi, "Swap"> = asy
 	{ event, client, store },
 ) => {
 	const block = await store.retrieve(`getBlock:${event.blockNumber}`, async () => await client.getBlock({ blockNumber: event.blockNumber }))
-    const { sender, zeroForOne, amountIn, amountOut, to } = event.args;
+	const { sender, zeroForOne, amountIn, amountOut, to } = event.args;
 	const pair = await store.retrieve(`pair:${event.address}`, async () => await getPair(client, event.address))
 	const rec = new Swap({
 		block: Number(event.blockNumber),
