@@ -20,9 +20,9 @@ export const SwapHandler: EventHandlerFor<typeof ReservoirPairAbi, "Swap"> = asy
 		to,
 		zeroForOne,
 		amount0In: toNumber(zeroForOne ? amountIn : 0n, pair.token0Decimals),
-		amount1Out: toNumber(zeroForOne ? amountOut : 0n, pair.token0Decimals),
+		amount1Out: toNumber(zeroForOne ? amountOut : 0n, pair.token1Decimals),
 		amount1In: toNumber(zeroForOne ? 0n : amountIn, pair.token1Decimals),
-		amount0Out: toNumber(zeroForOne ? 0n : amountOut, pair.token1Decimals),
+		amount0Out: toNumber(zeroForOne ? 0n : amountOut, pair.token0Decimals),
 	})
 	await rec.save()
 }
