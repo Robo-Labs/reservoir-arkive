@@ -1,4 +1,4 @@
-import { Manifest } from "https://deno.land/x/robo_arkiver@v0.4.15/mod.ts"
+import { Manifest } from "https://deno.land/x/robo_arkiver@v0.4.18/mod.ts"
 import { ReservoirPairAbi } from './abis/reservoirPair.ts'
 import { Pair } from './entities/pair.ts'
 import { Swap } from './entities/swap.ts'
