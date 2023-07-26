@@ -54,7 +54,7 @@ const updateSnapshot = async (ctx: Context, now: number, period: string) => {
 			liquidityRate1 * (managed1 / pair.reserve1)
 
 		const token0 = await getToken(ctx.client, pair.token0 as Address)
-		const token1 = await getToken(ctx.client, pair.token0 as Address)
+		const token1 = await getToken(ctx.client, pair.token1 as Address)
 		const volumeUSD = token0.priceUSD * volume0
 		
 		const snapshot = {
@@ -77,7 +77,7 @@ const updateSnapshot = async (ctx: Context, now: number, period: string) => {
 		await PairSnapshot.findOneAndUpdate({ pair }, snapshot, { upsert: true })
 
 		// update pair.tvlUSD
-		pair.tvlUSD = pair.reserve0 * token0.priceUSD + pair.reserve1 * token1.priceUSD
+		pair.tvlUSD = (pair.reserve0 * token0.priceUSD) + (pair.reserve1 * token1.priceUSD)
 		await pair.save()
 	}))
 }
