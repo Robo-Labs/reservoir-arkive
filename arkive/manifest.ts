@@ -10,7 +10,7 @@ import { AaveSnapshot } from './entities/aaveSnapshot.ts'
 import { SnapshotHandler } from './handlers/pairSnapshot.ts'
 import { PairSnapshot } from './entities/pairSnapshot.ts'
 
-const manifest = new Manifest('reservoir-mainnet-birgus')
+const manifest = new Manifest('reservoir-mainnet')
 const avalanche = manifest
 	.addEntities([Swap, Pair, Token, PairSnapshot, AaveSnapshot])
 	.addChain('avalanche', { blockRange: 1000n })
