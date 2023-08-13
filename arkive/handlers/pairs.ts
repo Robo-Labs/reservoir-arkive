@@ -9,6 +9,7 @@ const CURVE_IDS: Record<string, number>= {
   '0x146d00567cef404c1c0aaf1dfd2abea9f260b8c7': 1,
   '0x02ee8b06c500d0dddb8c689efdf24971ceb0ef19': 0,
   '0x81e50d088987e8f96a7c5f909c5665cd267eec82': 1,
+  '0x262ef86533cd7Fc58060af8547C820978A8b231A': 0,
 }
 
 export const getPair = async (client: PublicClient, address: Address) => {
