@@ -1,5 +1,6 @@
 export { formatUnits } from "npm:viem";
 export {
+  type BlockHandler,
   createEntity,
   type EventHandlerFor,
   Manifest,
