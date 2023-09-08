@@ -11,7 +11,7 @@ import { SnapshotHandler } from "./handlers/pairSnapshot.ts";
 import { PairSnapshot } from "./entities/pairSnapshot.ts";
 import { GenericFactoryAbi } from "./abis/genericFactory.ts";
 
-export default new Manifest("reservoir-mainnet")
+export default new Manifest("reservoir-mainnet-v2")
   .addEntities([Swap, Pair, Token, PairSnapshot, AaveSnapshot])
   .addChain("avalanche", (chain) =>
     chain
@@ -19,7 +19,7 @@ export default new Manifest("reservoir-mainnet")
         name: "ReservoirRouter",
         abi: GenericFactoryAbi,
         sources: {
-          "0x9Fc6B082DfB632bC11156f6fD2dc5F97F9B865F0": 31568259n,
+          "0xDd723D9273642D82c5761a4467fD5265d94a22da": 31568259n,
         },
       })
       .addContract({
