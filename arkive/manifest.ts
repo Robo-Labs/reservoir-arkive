@@ -10,6 +10,7 @@ import { AaveSnapshot } from "./entities/aaveSnapshot.ts";
 import { SnapshotHandler } from "./handlers/pairSnapshot.ts";
 import { PairSnapshot } from "./entities/pairSnapshot.ts";
 import { GenericFactoryAbi } from "./abis/genericFactory.ts";
+import { CreatePair } from "./handlers/createPair.ts";
 
 export default new Manifest("reservoir-mainnet-v2")
   .addEntities([Swap, Pair, Token, PairSnapshot, AaveSnapshot])
@@ -18,6 +19,7 @@ export default new Manifest("reservoir-mainnet-v2")
       .addContract({
         name: "ReservoirRouter",
         abi: GenericFactoryAbi,
+        eventHandlers: { 'Pair': CreatePair },
         sources: {
           "0xDd723D9273642D82c5761a4467fD5265d94a22da": 31568259n,
         },
